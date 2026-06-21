@@ -5,12 +5,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import 'package:emap_hangzhou/core/constants/app_constants.dart';
+import 'package:emap_hangzhou/core/utils/coordinate_utils.dart';
 import 'package:emap_hangzhou/features/map/domain/entities/place_entity.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/add_place_sheet.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/place_detail_sheet.dart';
 
-/// Map tab — displays an interactive map with saved place markers.
+/// Map tab — AMap tiles with GCJ-02/WGS-84 coordinate conversion.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -20,7 +21,11 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
-  LatLng _currentCenter = AppConstants.defaultMapCenter;
+
+  // Map center in GCJ-02 (AMap coordinate system).
+  LatLng _centerGcj02 = CoordinateUtils.wgs84ToGcj02(
+    AppConstants.defaultMapCenter,
+  );
   bool _locationGranted = false;
 
   @override
@@ -41,14 +46,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _requestLocation() async {
-    // Check if location service is enabled
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled && mounted) {
       _showLocationError('Location services are disabled.');
       return;
     }
 
-    // Check permission
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -69,14 +72,14 @@ class _MapScreenState extends State<MapScreen> {
           ),
         );
         if (mounted) {
-          setState(() {
-            _currentCenter = LatLng(position.latitude, position.longitude);
-          });
-          _mapController.move(_currentCenter, AppConstants.defaultZoom);
+          // GPS returns WGS-84 → convert to GCJ-02 for AMap display
+          final gcj = CoordinateUtils.wgs84ToGcj02(
+            LatLng(position.latitude, position.longitude),
+          );
+          setState(() => _centerGcj02 = gcj);
+          _mapController.move(gcj, AppConstants.defaultZoom);
         }
-      } catch (_) {
-        // GPS unavailable — map stays at default center
-      }
+      } catch (_) {}
     }
   }
 
@@ -90,26 +93,32 @@ class _MapScreenState extends State<MapScreen> {
   void _handleNavigateTarget(MapViewModel vm) {
     final target = vm.consumeNavigateTarget();
     if (target != null) {
-      _mapController.move(target, AppConstants.placeZoom);
+      // Target is WGS-84 → convert to GCJ-02 for AMap display
+      _mapController.move(
+        CoordinateUtils.wgs84ToGcj02(target),
+        AppConstants.placeZoom,
+      );
     }
   }
 
-  void _onTap(LatLng position) {
-    _showAddPlaceSheet(position);
+  /// Map tap returns GCJ-02. Convert to WGS-84 for storage.
+  void _onTap(LatLng gcjPosition) {
+    final wgs = CoordinateUtils.gcj02ToWgs84(gcjPosition);
+    _showAddPlaceSheet(wgs);
   }
 
   void _onMarkerTap(PlaceEntity place) {
     _showPlaceDetailSheet(place);
   }
 
-  void _showAddPlaceSheet(LatLng position) {
+  void _showAddPlaceSheet(LatLng wgsPosition) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (_) => AddPlaceSheet(
-        latitude: position.latitude,
-        longitude: position.longitude,
+        latitude: wgsPosition.latitude,
+        longitude: wgsPosition.longitude,
       ),
     );
   }
@@ -134,23 +143,24 @@ class _MapScreenState extends State<MapScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: _currentCenter,
+              initialCenter: _centerGcj02,
               initialZoom: AppConstants.defaultZoom,
+              maxZoom: 19,
               onTap: (_, position) => _onTap(position),
             ),
             children: [
               TileLayer(
-                // ESRI World Street Map — global CDN, usually not blocked
                 urlTemplate:
-                    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                    'https://webrd0{s}.is.autonavi.com/appmaptile'
+                    '?lang=zh_cn&size=1&scale=1&style=8'
+                    '&x={x}&y={y}&z={z}',
+                subdomains: const ['1', '2', '3', '4'],
+                maxNativeZoom: 18,
                 userAgentPackageName: 'com.example.emap_hangzhou',
-                subdomains: const [],
-                maxNativeZoom: 18, // ESRI has no data beyond zoom 18
               ),
               MarkerLayer(markers: vm.places.map(_buildMarker).toList()),
             ],
           ),
-          // "My Location" button
           Positioned(
             right: 16,
             bottom: 24,
@@ -160,10 +170,10 @@ class _MapScreenState extends State<MapScreen> {
                 if (_locationGranted) {
                   try {
                     final position = await Geolocator.getCurrentPosition();
-                    _mapController.move(
+                    final gcj = CoordinateUtils.wgs84ToGcj02(
                       LatLng(position.latitude, position.longitude),
-                      AppConstants.defaultZoom,
                     );
+                    _mapController.move(gcj, AppConstants.defaultZoom);
                   } catch (_) {}
                 } else {
                   _requestLocation();
@@ -177,9 +187,11 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  /// Marker position is WGS-84 → convert to GCJ-02 for AMap display.
   Marker _buildMarker(PlaceEntity place) {
+    final gcj = CoordinateUtils.wgs84ToGcj02(place.latLng);
     return Marker(
-      point: place.latLng,
+      point: gcj,
       width: 40,
       height: 40,
       child: GestureDetector(
