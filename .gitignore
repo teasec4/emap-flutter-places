@@ -1,0 +1,82 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart/Pub
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Generated Isar files (keep committed so app compiles after clone)
+# **/*.g.dart
+
+# Symbolication
+app.*.symbols
+app.*.map.json
+
+# Android build artifacts
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/.gradle
+/android/build/
+/android/captures
+/android/local.properties
+/android/*.iml
+
+# iOS build artifacts
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/ephemeral/
+/ios/Flutter/app.flx
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Runner/GeneratedPluginRegistrant.*
+/ios/ServiceDefinitions.json
+
+# Web
+/web/.dart_tool/
+
+# Windows
+/windows/flutter/ephemeral/
+
+# Linux
+/linux/flutter/ephemeral/
+
+# macOS
+/macos/Flutter/ephemeral/
+/macos/Pods/
+
+# Lock file — keep committed for apps
+# pubspec.lock
+
+# Metadata
+.metadata
