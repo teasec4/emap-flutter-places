@@ -9,6 +9,7 @@ import 'package:emap_hangzhou/core/utils/coordinate_utils.dart';
 import 'package:emap_hangzhou/features/map/domain/entities/place_entity.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/add_place_sheet.dart';
+import 'package:emap_hangzhou/features/map/presentation/widgets/map_search_bar.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/place_detail_sheet.dart';
 
 /// Map tab — AMap tiles with GCJ-02/WGS-84 coordinate conversion.
@@ -90,6 +91,24 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void _onSearchResultSelected(String name, LatLng wgsPosition) {
+    // Move map to the location (GCJ-02 for AMap display)
+    final gcj = CoordinateUtils.wgs84ToGcj02(wgsPosition);
+    _mapController.move(gcj, AppConstants.placeZoom);
+
+    // Show add-place sheet with pre-filled name and WGS-84 coords
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => AddPlaceSheet(
+        latitude: wgsPosition.latitude,
+        longitude: wgsPosition.longitude,
+        prefilledTitle: name,
+      ),
+    );
+  }
+
   void _handleNavigateTarget(MapViewModel vm) {
     final target = vm.consumeNavigateTarget();
     if (target != null) {
@@ -161,6 +180,14 @@ class _MapScreenState extends State<MapScreen> {
               MarkerLayer(markers: vm.places.map(_buildMarker).toList()),
             ],
           ),
+          // Search bar at top
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: MapSearchBar(onPlaceSelected: _onSearchResultSelected),
+          ),
+          // My Location button
           Positioned(
             right: 16,
             bottom: 24,

@@ -11,10 +11,12 @@ class AddPlaceSheet extends StatefulWidget {
     super.key,
     required this.latitude,
     required this.longitude,
+    this.prefilledTitle,
   });
 
   final double latitude;
   final double longitude;
+  final String? prefilledTitle;
 
   @override
   State<AddPlaceSheet> createState() => _AddPlaceSheetState();
@@ -24,6 +26,14 @@ class _AddPlaceSheetState extends State<AddPlaceSheet> {
   final _titleController = TextEditingController();
   final _commentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.prefilledTitle != null) {
+      _titleController.text = widget.prefilledTitle!;
+    }
+  }
 
   @override
   void dispose() {

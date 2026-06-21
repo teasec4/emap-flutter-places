@@ -38,6 +38,9 @@ dependencies:
   # Location
   geolocator: ^13.0.2
 
+  # HTTP for AMap API
+  http: ^1.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
