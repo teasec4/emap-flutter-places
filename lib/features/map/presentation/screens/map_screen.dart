@@ -29,6 +29,9 @@ class _MapScreenState extends State<MapScreen> {
   );
   bool _locationGranted = false;
 
+  /// Current user position in WGS-84 (null until GPS fix).
+  LatLng? _userPosition;
+
   @override
   void initState() {
     super.initState();
@@ -74,10 +77,12 @@ class _MapScreenState extends State<MapScreen> {
         );
         if (mounted) {
           // GPS returns WGS-84 → convert to GCJ-02 for AMap display
-          final gcj = CoordinateUtils.wgs84ToGcj02(
-            LatLng(position.latitude, position.longitude),
-          );
-          setState(() => _centerGcj02 = gcj);
+          final wgs = LatLng(position.latitude, position.longitude);
+          final gcj = CoordinateUtils.wgs84ToGcj02(wgs);
+          setState(() {
+            _userPosition = wgs;
+            _centerGcj02 = gcj;
+          });
           _mapController.move(gcj, AppConstants.defaultZoom);
         }
       } catch (_) {}
@@ -177,7 +182,12 @@ class _MapScreenState extends State<MapScreen> {
                 maxNativeZoom: 18,
                 userAgentPackageName: 'com.example.emap_hangzhou',
               ),
-              MarkerLayer(markers: vm.places.map(_buildMarker).toList()),
+              MarkerLayer(
+                markers: [
+                  ...vm.places.map(_buildMarker),
+                  if (_userPosition != null) _buildUserMarker(),
+                ],
+              ),
             ],
           ),
           // Search bar at top
@@ -197,9 +207,9 @@ class _MapScreenState extends State<MapScreen> {
                 if (_locationGranted) {
                   try {
                     final position = await Geolocator.getCurrentPosition();
-                    final gcj = CoordinateUtils.wgs84ToGcj02(
-                      LatLng(position.latitude, position.longitude),
-                    );
+                    final wgs = LatLng(position.latitude, position.longitude);
+                    final gcj = CoordinateUtils.wgs84ToGcj02(wgs);
+                    setState(() => _userPosition = wgs);
                     _mapController.move(gcj, AppConstants.defaultZoom);
                   } catch (_) {}
                 } else {
@@ -224,6 +234,26 @@ class _MapScreenState extends State<MapScreen> {
       child: GestureDetector(
         onTap: () => _onMarkerTap(place),
         child: const Icon(Icons.place, color: Colors.red, size: 36),
+      ),
+    );
+  }
+
+  /// Blue dot for user's current location.
+  Marker _buildUserMarker() {
+    final gcj = CoordinateUtils.wgs84ToGcj02(_userPosition!);
+    return Marker(
+      point: gcj,
+      width: 24,
+      height: 24,
+      alignment: Alignment.center,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.blue.withAlpha(60),
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Icon(Icons.circle, color: Colors.blue, size: 14),
+        ),
       ),
     );
   }
