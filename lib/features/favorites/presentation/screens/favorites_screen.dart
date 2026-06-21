@@ -6,6 +6,7 @@ import 'package:emap_hangzhou/core/utils/amap_route_launcher.dart';
 import 'package:emap_hangzhou/features/favorites/presentation/viewmodels/favorites_viewmodel.dart';
 import 'package:emap_hangzhou/features/map/domain/entities/place_entity.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
+import 'package:emap_hangzhou/features/map/presentation/widgets/place_type_ui.dart';
 
 /// Favorites tab — lists all saved places with actions.
 ///
@@ -121,7 +122,34 @@ class _PlaceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(place.title, style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                Icon(place.type.icon, color: place.type.color, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    place.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: place.type.color.withAlpha(25),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    place.type.label,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: place.type.color),
+                  ),
+                ),
+              ],
+            ),
             if (place.comment.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(

@@ -11,6 +11,7 @@ import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel
 import 'package:emap_hangzhou/features/map/presentation/widgets/add_place_sheet.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/map_search_bar.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/place_detail_sheet.dart';
+import 'package:emap_hangzhou/features/map/presentation/widgets/place_type_ui.dart';
 
 /// Map tab — AMap tiles with GCJ-02/WGS-84 coordinate conversion.
 class MapScreen extends StatefulWidget {
@@ -22,21 +23,16 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
-
-  // Map center in GCJ-02 (AMap coordinate system).
   LatLng _centerGcj02 = CoordinateUtils.wgs84ToGcj02(
     AppConstants.defaultMapCenter,
   );
   bool _locationGranted = false;
-
-  /// Current user position in WGS-84 (null until GPS fix).
   LatLng? _userPosition;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MapViewModel>().loadPlaces();
       _requestLocation();
@@ -52,72 +48,54 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _requestLocation() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled && mounted) {
-      _showLocationError('Location services are disabled.');
+      _showSnack('Location services are disabled.');
       return;
     }
-
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-
     if (permission == LocationPermission.deniedForever && mounted) {
-      _showLocationError('Location permission denied permanently.');
+      _showSnack('Location permission denied permanently.');
       return;
     }
-
     if (permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always) {
       _locationGranted = true;
       try {
-        final position = await Geolocator.getCurrentPosition(
+        final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.high,
           ),
         );
         if (mounted) {
-          // GPS returns WGS-84 → convert to GCJ-02 for AMap display
-          final wgs = LatLng(position.latitude, position.longitude);
-          final gcj = CoordinateUtils.wgs84ToGcj02(wgs);
+          final wgs = LatLng(pos.latitude, pos.longitude);
           setState(() {
             _userPosition = wgs;
-            _centerGcj02 = gcj;
+            _centerGcj02 = CoordinateUtils.wgs84ToGcj02(wgs);
           });
-          _mapController.move(gcj, AppConstants.defaultZoom);
+          _mapController.move(_centerGcj02, AppConstants.defaultZoom);
         }
       } catch (_) {}
     }
   }
 
-  void _showLocationError(String message) {
+  void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
     );
   }
 
-  void _onSearchResultSelected(String name, LatLng wgsPosition) {
-    // Move map to the location (GCJ-02 for AMap display)
-    final gcj = CoordinateUtils.wgs84ToGcj02(wgsPosition);
+  /// Search result selected — just move the map, don't auto-save.
+  void _onSearchResultSelected(String name, LatLng wgsPos) {
+    final gcj = CoordinateUtils.wgs84ToGcj02(wgsPos);
     _mapController.move(gcj, AppConstants.placeZoom);
-
-    // Show add-place sheet with pre-filled name and WGS-84 coords
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => AddPlaceSheet(
-        latitude: wgsPosition.latitude,
-        longitude: wgsPosition.longitude,
-        prefilledTitle: name,
-      ),
-    );
   }
 
   void _handleNavigateTarget(MapViewModel vm) {
     final target = vm.consumeNavigateTarget();
     if (target != null) {
-      // Target is WGS-84 → convert to GCJ-02 for AMap display
       _mapController.move(
         CoordinateUtils.wgs84ToGcj02(target),
         AppConstants.placeZoom,
@@ -126,8 +104,8 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   /// Map tap returns GCJ-02. Convert to WGS-84 for storage.
-  void _onTap(LatLng gcjPosition) {
-    final wgs = CoordinateUtils.gcj02ToWgs84(gcjPosition);
+  void _onTap(LatLng gcj) {
+    final wgs = CoordinateUtils.gcj02ToWgs84(gcj);
     _showAddPlaceSheet(wgs);
   }
 
@@ -135,23 +113,31 @@ class _MapScreenState extends State<MapScreen> {
     _showPlaceDetailSheet(place);
   }
 
-  void _showAddPlaceSheet(LatLng wgsPosition) {
+  void _showAddPlaceSheet(LatLng wgs) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => AddPlaceSheet(
-        latitude: wgsPosition.latitude,
-        longitude: wgsPosition.longitude,
-      ),
+      builder: (_) =>
+          AddPlaceSheet(latitude: wgs.latitude, longitude: wgs.longitude),
     );
   }
 
   void _showPlaceDetailSheet(PlaceEntity place) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => PlaceDetailSheet(place: place),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.45,
+        minChildSize: 0.25,
+        maxChildSize: 0.75,
+        expand: false,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: PlaceDetailSheet(place: place),
+        ),
+      ),
     );
   }
 
@@ -170,7 +156,7 @@ class _MapScreenState extends State<MapScreen> {
               initialCenter: _centerGcj02,
               initialZoom: AppConstants.defaultZoom,
               maxZoom: 19,
-              onTap: (_, position) => _onTap(position),
+              onTap: (_, p) => _onTap(p),
             ),
             children: [
               TileLayer(
@@ -190,24 +176,24 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
-          // Search bar at top
+          // Bottom search panel
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
+            left: 12,
+            right: 12,
+            bottom: 12,
             child: MapSearchBar(onPlaceSelected: _onSearchResultSelected),
           ),
           // My Location button
           Positioned(
             right: 16,
-            bottom: 24,
+            bottom: 80,
             child: FloatingActionButton.small(
               heroTag: 'my_location',
               onPressed: () async {
                 if (_locationGranted) {
                   try {
-                    final position = await Geolocator.getCurrentPosition();
-                    final wgs = LatLng(position.latitude, position.longitude);
+                    final pos = await Geolocator.getCurrentPosition();
+                    final wgs = LatLng(pos.latitude, pos.longitude);
                     final gcj = CoordinateUtils.wgs84ToGcj02(wgs);
                     setState(() => _userPosition = wgs);
                     _mapController.move(gcj, AppConstants.defaultZoom);
@@ -224,21 +210,25 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  /// Marker position is WGS-84 → convert to GCJ-02 for AMap display.
   Marker _buildMarker(PlaceEntity place) {
     final gcj = CoordinateUtils.wgs84ToGcj02(place.latLng);
     return Marker(
       point: gcj,
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       child: GestureDetector(
         onTap: () => _onMarkerTap(place),
-        child: const Icon(Icons.place, color: Colors.red, size: 36),
+        child: Container(
+          decoration: BoxDecoration(
+            color: place.type.color.withAlpha(40),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(place.type.icon, color: place.type.color, size: 28),
+        ),
       ),
     );
   }
 
-  /// Blue dot for user's current location.
   Marker _buildUserMarker() {
     final gcj = CoordinateUtils.wgs84ToGcj02(_userPosition!);
     return Marker(

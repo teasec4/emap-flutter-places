@@ -35,6 +35,12 @@ const IsarPlaceModelSchema = CollectionSchema(
       type: IsarType.double,
     ),
     r'title': PropertySchema(id: 5, name: r'title', type: IsarType.string),
+    r'type': PropertySchema(
+      id: 6,
+      name: r'type',
+      type: IsarType.string,
+      enumMap: _IsarPlaceModeltypeEnumValueMap,
+    ),
   },
 
   estimateSize: _isarPlaceModelEstimateSize,
@@ -75,6 +81,7 @@ int _isarPlaceModelEstimateSize(
   bytesCount += 3 + object.comment.length * 3;
   bytesCount += 3 + object.id.length * 3;
   bytesCount += 3 + object.title.length * 3;
+  bytesCount += 3 + object.type.name.length * 3;
   return bytesCount;
 }
 
@@ -90,6 +97,7 @@ void _isarPlaceModelSerialize(
   writer.writeDouble(offsets[3], object.latitude);
   writer.writeDouble(offsets[4], object.longitude);
   writer.writeString(offsets[5], object.title);
+  writer.writeString(offsets[6], object.type.name);
 }
 
 IsarPlaceModel _isarPlaceModelDeserialize(
@@ -106,6 +114,9 @@ IsarPlaceModel _isarPlaceModelDeserialize(
   object.latitude = reader.readDouble(offsets[3]);
   object.longitude = reader.readDouble(offsets[4]);
   object.title = reader.readString(offsets[5]);
+  object.type =
+      _IsarPlaceModeltypeValueEnumMap[reader.readStringOrNull(offsets[6])] ??
+      PlaceType.restaurant;
   return object;
 }
 
@@ -128,10 +139,29 @@ P _isarPlaceModelDeserializeProp<P>(
       return (reader.readDouble(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
+    case 6:
+      return (_IsarPlaceModeltypeValueEnumMap[reader.readStringOrNull(
+                offset,
+              )] ??
+              PlaceType.restaurant)
+          as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
+
+const _IsarPlaceModeltypeEnumValueMap = {
+  r'restaurant': r'restaurant',
+  r'exhibition': r'exhibition',
+  r'museum': r'museum',
+  r'other': r'other',
+};
+const _IsarPlaceModeltypeValueEnumMap = {
+  r'restaurant': PlaceType.restaurant,
+  r'exhibition': PlaceType.exhibition,
+  r'museum': PlaceType.museum,
+  r'other': PlaceType.other,
+};
 
 Id _isarPlaceModelGetId(IsarPlaceModel object) {
   return object.isarId;
@@ -1024,6 +1054,147 @@ extension IsarPlaceModelQueryFilter
       );
     });
   }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeEqualTo(PlaceType value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'type',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeGreaterThan(
+    PlaceType value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'type',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeLessThan(
+    PlaceType value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'type',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeBetween(
+    PlaceType lower,
+    PlaceType upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'type',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'type',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'type',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'type',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'type',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'type', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterFilterCondition>
+  typeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'type', value: ''),
+      );
+    });
+  }
 }
 
 extension IsarPlaceModelQueryObject
@@ -1107,6 +1278,18 @@ extension IsarPlaceModelQuerySortBy
   QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterSortBy> sortByTitleDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.desc);
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterSortBy> sortByType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.asc);
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterSortBy> sortByTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.desc);
     });
   }
 }
@@ -1201,6 +1384,18 @@ extension IsarPlaceModelQuerySortThenBy
       return query.addSortBy(r'title', Sort.desc);
     });
   }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterSortBy> thenByType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.asc);
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QAfterSortBy> thenByTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.desc);
+    });
+  }
 }
 
 extension IsarPlaceModelQueryWhereDistinct
@@ -1248,6 +1443,14 @@ extension IsarPlaceModelQueryWhereDistinct
       return query.addDistinctBy(r'title', caseSensitive: caseSensitive);
     });
   }
+
+  QueryBuilder<IsarPlaceModel, IsarPlaceModel, QDistinct> distinctByType({
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'type', caseSensitive: caseSensitive);
+    });
+  }
 }
 
 extension IsarPlaceModelQueryProperty
@@ -1291,6 +1494,12 @@ extension IsarPlaceModelQueryProperty
   QueryBuilder<IsarPlaceModel, String, QQueryOperations> titleProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'title');
+    });
+  }
+
+  QueryBuilder<IsarPlaceModel, PlaceType, QQueryOperations> typeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'type');
     });
   }
 }

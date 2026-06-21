@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:emap_hangzhou/features/map/domain/entities/place_entity.dart';
+import 'package:emap_hangzhou/features/map/domain/entities/place_type.dart';
 import 'package:emap_hangzhou/features/map/domain/repositories/place_repository.dart';
 
 /// ViewModel for the Map screen.
@@ -60,6 +61,7 @@ class MapViewModel extends ChangeNotifier {
     required double longitude,
     required String title,
     required String comment,
+    PlaceType type = PlaceType.other,
   }) async {
     final place = PlaceEntity(
       id: _uuid.v4(),
@@ -67,6 +69,7 @@ class MapViewModel extends ChangeNotifier {
       longitude: longitude,
       title: title,
       comment: comment,
+      type: type,
       createdAt: DateTime.now(),
     );
 

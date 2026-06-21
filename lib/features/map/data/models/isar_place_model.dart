@@ -1,17 +1,14 @@
 import 'package:isar_community/isar.dart';
 
+import 'package:emap_hangzhou/features/map/domain/entities/place_type.dart';
+
 part 'isar_place_model.g.dart';
 
 /// Isar-backed data model for [PlaceEntity].
-///
-/// Contains Isar-specific annotations. The repository maps between
-/// this model and the domain [PlaceEntity] at the data/domain boundary.
 @collection
 class IsarPlaceModel {
-  /// Auto-incremented internal Isar ID (not exposed outside the data layer).
   Id isarId = Isar.autoIncrement;
 
-  /// Business identifier (UUID).
   @Index(unique: true)
   late String id;
 
@@ -19,5 +16,9 @@ class IsarPlaceModel {
   late double longitude;
   late String title;
   late String comment;
+
+  @Enumerated(EnumType.name)
+  late PlaceType type;
+
   late DateTime createdAt;
 }

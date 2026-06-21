@@ -1,15 +1,15 @@
 import 'package:latlong2/latlong.dart';
 
+import 'package:emap_hangzhou/features/map/domain/entities/place_type.dart';
+
 /// Core domain entity representing a saved place/bookmark.
-///
-/// Owned by the domain layer. No framework dependencies.
-/// The data layer maps [PlaceModel] ↔ [PlaceEntity] at the repository boundary.
 class PlaceEntity {
   final String id;
   final double latitude;
   final double longitude;
   final String title;
   final String comment;
+  final PlaceType type;
   final DateTime createdAt;
 
   const PlaceEntity({
@@ -18,6 +18,7 @@ class PlaceEntity {
     required this.longitude,
     required this.title,
     required this.comment,
+    this.type = PlaceType.other,
     required this.createdAt,
   });
 

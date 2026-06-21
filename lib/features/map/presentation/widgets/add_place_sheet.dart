@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:emap_hangzhou/features/map/domain/entities/place_type.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
+import 'package:emap_hangzhou/features/map/presentation/widgets/place_type_ui.dart';
 
-/// Bottom sheet shown after the user taps an empty spot on the map.
+/// Bottom sheet for adding a new place marker.
 ///
-/// Allows entering a title and comment, then saving the location.
+/// Title, comment, and type selector.
 class AddPlaceSheet extends StatefulWidget {
   const AddPlaceSheet({
     super.key,
@@ -23,36 +25,36 @@ class AddPlaceSheet extends StatefulWidget {
 }
 
 class _AddPlaceSheetState extends State<AddPlaceSheet> {
-  final _titleController = TextEditingController();
-  final _commentController = TextEditingController();
+  final _titleCtrl = TextEditingController();
+  final _commentCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  PlaceType _type = PlaceType.other;
 
   @override
   void initState() {
     super.initState();
     if (widget.prefilledTitle != null) {
-      _titleController.text = widget.prefilledTitle!;
+      _titleCtrl.text = widget.prefilledTitle!;
     }
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _commentController.dispose();
+    _titleCtrl.dispose();
+    _commentCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-
     final vm = context.read<MapViewModel>();
     await vm.savePlace(
       latitude: widget.latitude,
       longitude: widget.longitude,
-      title: _titleController.text.trim(),
-      comment: _commentController.text.trim(),
+      title: _titleCtrl.text.trim(),
+      comment: _commentCtrl.text.trim(),
+      type: _type,
     );
-
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -67,50 +69,80 @@ class _AddPlaceSheetState extends State<AddPlaceSheet> {
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Add Place', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              '${widget.latitude.toStringAsFixed(6)}, '
-              '${widget.longitude.toStringAsFixed(6)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Add Place', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(
+                '${widget.latitude.toStringAsFixed(6)}, '
+                '${widget.longitude.toStringAsFixed(6)}',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Title is required' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _commentController,
-              decoration: const InputDecoration(
-                labelText: 'Comment (optional)',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              // Type selector
+              Text('Type', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: PlaceType.values.map((t) {
+                  final selected = _type == t;
+                  return ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          t.icon,
+                          size: 16,
+                          color: selected ? Colors.white : t.color,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(t.label),
+                      ],
+                    ),
+                    selected: selected,
+                    selectedColor: t.color,
+                    onSelected: (_) => setState(() => _type = t),
+                  );
+                }).toList(),
               ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            Consumer<MapViewModel>(
-              builder: (_, vm, _) => FilledButton(
-                onPressed: vm.isLoading ? null : _save,
-                child: vm.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save Place'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _titleCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Title is required'
+                    : null,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _commentCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Comment (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              Consumer<MapViewModel>(
+                builder: (_, vm, _) => FilledButton(
+                  onPressed: vm.isLoading ? null : _save,
+                  child: vm.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save Place'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
