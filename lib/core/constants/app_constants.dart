@@ -16,6 +16,9 @@ class AppConstants {
   /// AMap deep link source application identifier.
   static const amapSourceApp = 'emap_hangzhou';
 
-  /// AMap API key for tile access.
+  /// AMap API key for tile access (Android/iOS platform).
   static const amapApiKey = 'dd8c7da64eb4197f3ea9a6bd78a95013';
+
+  /// AMap API key for Web Service (search, geocoding).
+  static const amapWebApiKey = '221a7ebad52852c52d73f48f41dc2a0e';
 }

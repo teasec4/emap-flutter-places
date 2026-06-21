@@ -19,7 +19,7 @@ class AmapSearchService {
 
     final uri = Uri.parse(_baseUrl).replace(
       queryParameters: {
-        'key': AppConstants.amapApiKey,
+        'key': AppConstants.amapWebApiKey,
         'keywords': query.trim(),
         'city': 'hangzhou',
         'output': 'json',
