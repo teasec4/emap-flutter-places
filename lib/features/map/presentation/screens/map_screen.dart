@@ -233,16 +233,23 @@ class _MapScreenState extends State<MapScreen> {
     final gcj = CoordinateUtils.wgs84ToGcj02(_userPosition!);
     return Marker(
       point: gcj,
-      width: 24,
-      height: 24,
+      width: 20,
+      height: 20,
       alignment: Alignment.center,
       child: Container(
+        width: 20,
+        height: 20,
         decoration: BoxDecoration(
-          color: Colors.blue.withAlpha(60),
           shape: BoxShape.circle,
-        ),
-        child: const Center(
-          child: Icon(Icons.circle, color: Colors.blue, size: 14),
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(50),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          color: Colors.blue,
         ),
       ),
     );
