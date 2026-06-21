@@ -80,3 +80,6 @@ app.*.map.json
 
 # Metadata
 .metadata
+
+# Kotlin sessions
+**/.kotlin/sessions/

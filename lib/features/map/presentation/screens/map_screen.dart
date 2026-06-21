@@ -145,6 +145,7 @@ class _MapScreenState extends State<MapScreen> {
                     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
                 userAgentPackageName: 'com.example.emap_hangzhou',
                 subdomains: const [],
+                maxNativeZoom: 18, // ESRI has no data beyond zoom 18
               ),
               MarkerLayer(markers: vm.places.map(_buildMarker).toList()),
             ],
@@ -183,7 +184,7 @@ class _MapScreenState extends State<MapScreen> {
       height: 40,
       child: GestureDetector(
         onTap: () => _onMarkerTap(place),
-        child: const Icon(Icons.location_on, color: Colors.red, size: 36),
+        child: const Icon(Icons.place, color: Colors.red, size: 36),
       ),
     );
   }
