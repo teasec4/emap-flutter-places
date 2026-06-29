@@ -150,7 +150,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Marker _buildPoiMarker(PoiModel poi) {
-    final type = PlaceTypeUi.fromType(poi.type);
+    final type = PlaceTypeUi.fromType(poi.category);
     // Server stores GCJ-02 — no conversion needed.
     return Marker(
       point: LatLng(poi.lat, poi.lng),
@@ -204,13 +204,12 @@ class _MapScreenState extends State<MapScreen> {
 
 class _PoiSheet extends StatelessWidget {
   const _PoiSheet({required this.poi});
-
   final PoiModel poi;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final type = PlaceTypeUi.fromType(poi.type);
+    final type = PlaceTypeUi.fromType(poi.category);
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(

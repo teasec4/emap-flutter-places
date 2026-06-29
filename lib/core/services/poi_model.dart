@@ -1,8 +1,8 @@
-/// Matches server JSON: id, name, type, lat, lng, comment, createdAt, updatedAt
+/// Matches server JSON: id, name, category, lat, lng, comment, createdAt, updatedAt
 class PoiModel {
   final String id;
   final String name;
-  final String type;
+  final String category;
   final double lat;
   final double lng;
   final String? comment;
@@ -12,7 +12,7 @@ class PoiModel {
   const PoiModel({
     required this.id,
     required this.name,
-    required this.type,
+    required this.category,
     required this.lat,
     required this.lng,
     this.comment,
@@ -31,7 +31,7 @@ class PoiModel {
     return PoiModel(
       id: safeString(json['id']),
       name: safeString(json['name']),
-      type: safeString(json['type']),
+      category: safeString(json['category']),
       lat: safeDouble(json['lat']),
       lng: safeDouble(json['lng']),
       comment: json['comment']?.toString(),
