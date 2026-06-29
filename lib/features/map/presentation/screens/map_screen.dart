@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
@@ -22,7 +20,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static const _poiMarkerSize = Size(32, 40);
+  static const _poiMarkerSize = Size.square(AppConstants.poiMarkerSize);
 
   late final MapController _mapController;
   List<PoiModel>? _cachedPois;
@@ -243,7 +241,7 @@ class _MapScreenState extends State<MapScreen> {
       point: _poiMapPoint(poi),
       width: _poiMarkerSize.width,
       height: _poiMarkerSize.height,
-      alignment: Alignment.bottomCenter,
+      alignment: Alignment.center,
       child: GestureDetector(
         onTap: () => _onPoiTap(poi),
         child: _PoiPin(type: type),
@@ -746,57 +744,25 @@ class _PoiPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: type.color,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(35),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    return Container(
+      width: AppConstants.poiMarkerSize,
+      height: AppConstants.poiMarkerSize,
+      decoration: BoxDecoration(
+        color: type.color.withAlpha(AppConstants.poiMarkerFillAlpha),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: type.color,
+          width: AppConstants.poiMarkerBorderWidth,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(35),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          child: Center(child: Icon(type.icon, color: Colors.white, size: 18)),
-        ),
-        CustomPaint(
-          size: const Size(10, 7),
-          painter: _TrianglePainter(color: type.color),
-        ),
-      ],
+        ],
+      ),
+      child: Center(child: Icon(type.icon, color: type.color, size: 26)),
     );
-  }
-}
-
-class _TrianglePainter extends CustomPainter {
-  _TrianglePainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(
-      ui.Path()
-        ..moveTo(size.width / 2, size.height)
-        ..lineTo(0, 0)
-        ..lineTo(size.width, 0)
-        ..close(),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrianglePainter oldDelegate) {
-    return oldDelegate.color != color;
   }
 }
