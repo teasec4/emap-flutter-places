@@ -156,11 +156,12 @@ class _MapScreenState extends State<MapScreen> {
     ).showSnackBar(const SnackBar(content: Text('Location is unavailable')));
   }
 
-  // Public POI API coordinates are WGS-84. AMap tiles are GCJ-02.
-  LatLng _poiGpsPoint(PoiModel poi) => LatLng(poi.lat, poi.lng);
+  // The public POI API stores AMap/GCJ-02 coordinates. Draw them on AMap
+  // tiles as-is; convert only for GPS-distance calculations.
+  LatLng _poiMapPoint(PoiModel poi) => LatLng(poi.lat, poi.lng);
 
-  LatLng _poiMapPoint(PoiModel poi) {
-    return CoordinateUtils.wgs84ToGcj02(_poiGpsPoint(poi));
+  LatLng _poiGpsPoint(PoiModel poi) {
+    return CoordinateUtils.gcj02ToWgs84(_poiMapPoint(poi));
   }
 
   void _moveToUser(LatLng position) {
