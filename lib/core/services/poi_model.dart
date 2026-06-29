@@ -1,4 +1,4 @@
-/// Matches server JSON: id, name, category, lat, lng, comment, createdAt, updatedAt
+/// Matches server JSON: id, name, category, lat, lng, comment, createdAt, updatedAt.
 class PoiModel {
   final String id;
   final String name;
@@ -21,22 +21,44 @@ class PoiModel {
   });
 
   factory PoiModel.fromJson(Map<String, dynamic> json) {
-    String safeString(dynamic v) => (v ?? '').toString();
-    double safeDouble(dynamic v) => ((v ?? 0) as num).toDouble();
-    DateTime safeDate(dynamic v) {
-      final s = safeString(v);
-      return s.isNotEmpty ? DateTime.parse(s) : DateTime.now();
+    String safeString(dynamic value) => (value ?? '').toString().trim();
+    double safeDouble(dynamic value) => value is num ? value.toDouble() : 0;
+    DateTime safeDate(dynamic value) {
+      final date = DateTime.tryParse(safeString(value));
+      return date ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     }
 
+    final lat = safeDouble(json['lat']);
+    final lng = safeDouble(json['lng']);
+    final id = safeString(json['id']);
+
     return PoiModel(
-      id: safeString(json['id']),
+      id: id.isNotEmpty ? id : '$lat,$lng:${safeString(json['name'])}',
       name: safeString(json['name']),
-      category: safeString(json['category']),
-      lat: safeDouble(json['lat']),
-      lng: safeDouble(json['lng']),
+      category: safeString(json['category'] ?? json['type']),
+      lat: lat,
+      lng: lng,
       comment: json['comment']?.toString(),
       createdAt: safeDate(json['createdAt']),
       updatedAt: safeDate(json['updatedAt']),
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is PoiModel &&
+            other.id == id &&
+            other.name == name &&
+            other.category == category &&
+            other.lat == lat &&
+            other.lng == lng &&
+            other.comment == comment &&
+            other.createdAt == createdAt &&
+            other.updatedAt == updatedAt;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, category, lat, lng, comment, createdAt, updatedAt);
 }

@@ -17,10 +17,10 @@ class AppConstants {
 
   // --- AMap tile provider ----------------------------------------------
 
-  /// AMap raster tile URL template. `style=8` = vector-like web Mercator.
+  /// AMap raster tile URL template. `style=7` = standard raster map.
   static const amapTileUrlTemplate =
       'https://webrd0{s}.is.autonavi.com/appmaptile'
-      '?lang=zh_cn&size=1&scale=1&style=8'
+      '?lang=zh_cn&size=1&scale=1&style=7'
       '&x={x}&y={y}&z={z}';
 
   /// Subdomains AMap rotates through to spread load.
@@ -29,7 +29,9 @@ class AppConstants {
   /// Native max zoom AMap raster tiles support.
   static const amapTileMaxNativeZoom = 18;
 
-  /// User agent the tile provider advertises. Override per app flavor.
+  /// User agent the tile provider advertises.
+  ///
+  /// Keep this in sync with the Android applicationId until flavors are added.
   static const tileUserAgentPackageName = 'com.example.emap_hangzhou';
 
   // --- AMap deep link --------------------------------------------------
@@ -43,16 +45,13 @@ class AppConstants {
   static const apiBaseUrl = 'https://content.nalichi.fun';
   static const apiPoisPath = '/api/public/pois';
 
-  // --- UX timings ------------------------------------------------------
-
-  /// Splash overlay pause before navigation.
-  static const splashReadyDelay = Duration(milliseconds: 500);
+  // --- Timings ---------------------------------------------------------
 
   /// Server request timeout.
   static const networkTimeout = Duration(seconds: 10);
 
-  /// Error snackbar duration on the map screen.
-  static const errorSnackBarDuration = Duration(seconds: 5);
+  /// Location request timeout for startup and manual refresh.
+  static const locationTimeout = Duration(seconds: 5);
 
   // --- Marker visuals --------------------------------------------------
 

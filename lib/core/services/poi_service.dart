@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:http/http.dart' as http;
 
@@ -9,29 +10,38 @@ class PoiService {
   PoiService._();
 
   static Future<(List<PoiModel>, String?)> fetchPois() async {
-    final url = '${AppConstants.apiBaseUrl}${AppConstants.apiPoisPath}';
-    final uri = Uri.parse(url);
-    print('[POI] GET $url');
+    final uri = Uri.parse(
+      '${AppConstants.apiBaseUrl}${AppConstants.apiPoisPath}',
+    );
 
     try {
       final response = await http.get(uri).timeout(AppConstants.networkTimeout);
-      print('[POI] status=${response.statusCode}');
-
       if (response.statusCode != 200) {
-        print('[POI] BODY=${response.body}');
+        log(
+          'Failed to load POIs: HTTP ${response.statusCode}',
+          name: 'PoiService',
+        );
         return (<PoiModel>[], 'HTTP ${response.statusCode}');
       }
 
-      final list = json.decode(response.body) as List<dynamic>;
-      print('[POI] loaded ${list.length} items');
-      return (
-        list.map((j) => PoiModel.fromJson(j as Map<String, dynamic>)).toList(),
-        null,
+      final decoded = json.decode(response.body);
+      if (decoded is! List<dynamic>) {
+        return (<PoiModel>[], 'Invalid POI response');
+      }
+
+      final pois = decoded
+          .whereType<Map<String, dynamic>>()
+          .map(PoiModel.fromJson)
+          .toList(growable: false);
+      return (pois, null);
+    } catch (error, stackTrace) {
+      log(
+        'Failed to load POIs',
+        name: 'PoiService',
+        error: error,
+        stackTrace: stackTrace,
       );
-    } catch (e, st) {
-      print('[POI] FAIL $e');
-      print('[POI] STACK $st');
-      return (<PoiModel>[], '$e');
+      return (<PoiModel>[], error.toString());
     }
   }
 }

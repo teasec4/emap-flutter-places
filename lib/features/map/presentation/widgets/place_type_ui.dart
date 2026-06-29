@@ -67,12 +67,13 @@ extension PlaceTypeUi on PlaceType {
     }
   }
 
-  /// Parse from server `type` string (e.g. "cafe", "food").
+  /// Parse from a server category string (e.g. "coffee", "food").
   ///
-  /// Falls back to [PlaceType.other] for unknown values. A few server-side
-  /// aliases (e.g. "cafe") are mapped onto the canonical enum values so the
-  /// marker icon stays meaningful.
-  static PlaceType fromType(String type) {
+  /// Falls back to [PlaceType.other] for unknown values. A few legacy aliases
+  /// (e.g. "cafe") are mapped onto the canonical enum values so the marker icon
+  /// stays meaningful.
+  static PlaceType fromType(String category) {
+    final normalized = category.trim().toLowerCase();
     const aliases = <String, PlaceType>{
       'cafe': PlaceType.coffee,
       'bar': PlaceType.coffee,
@@ -82,9 +83,9 @@ extension PlaceTypeUi on PlaceType {
       'park': PlaceType.nature,
     };
     final mapped =
-        aliases[type] ??
+        aliases[normalized] ??
         PlaceType.values.firstWhere(
-          (t) => t.name == type,
+          (type) => type.name == normalized,
           orElse: () => PlaceType.other,
         );
     return mapped;
