@@ -30,10 +30,11 @@ class _MapScreenState extends State<MapScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = context.read<MapViewModel>();
-      // Use GPS position from splash, otherwise default to Hangzhou
       if (vm.initialPosition != null) {
-        _userPosition = vm.initialPosition;
-        _locationGranted = true;
+        setState(() {
+          _userPosition = vm.initialPosition;
+          _locationGranted = true;
+        });
         _mapController.move(
           CoordinateUtils.wgs84ToGcj02(vm.initialPosition!),
           AppConstants.defaultZoom,
@@ -72,6 +73,24 @@ class _MapScreenState extends State<MapScreen> {
     final center = _userPosition != null
         ? CoordinateUtils.wgs84ToGcj02(_userPosition!)
         : CoordinateUtils.wgs84ToGcj02(AppConstants.defaultMapCenter);
+
+    // Show server error if any
+    if (vm.error != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Server: ${vm.error}'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => context.read<MapViewModel>().loadPois(),
+              ),
+            ),
+          );
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),

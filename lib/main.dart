@@ -36,7 +36,7 @@ class _SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<_SplashScreen> {
   final _vm = MapViewModel();
   String _status = 'Loading...';
-  bool _ready = false;
+  String? _error;
 
   @override
   void initState() {
@@ -49,7 +49,15 @@ class _SplashScreenState extends State<_SplashScreen> {
     setState(() => _status = 'Loading places...');
     await _vm.loadPois();
 
-    // 2. Try to get user location (non-blocking)
+    if (_vm.error != null) {
+      setState(() {
+        _error = _vm.error;
+        _status = 'Failed to load';
+      });
+      return;
+    }
+
+    // 2. Try to get user location
     setState(() => _status = 'Finding your location...');
     LatLng? userPos;
     try {
@@ -72,19 +80,15 @@ class _SplashScreenState extends State<_SplashScreen> {
       }
     } catch (_) {}
 
-    // Wait until 2 seconds total elapsed, then navigate
     setState(() => _status = 'Ready!');
+    _vm.setInitialPosition(userPos);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
-    setState(() => _ready = true);
+    _navigateToMap();
+  }
 
-    // Pass initial position to MapViewModel for MapScreen to use
-    _vm.setInitialPosition(userPos);
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
+  void _navigateToMap() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider.value(
@@ -111,16 +115,43 @@ class _SplashScreenState extends State<_SplashScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.map,
+              _error != null ? Icons.cloud_off : Icons.map,
               size: 72,
-              color: _ready
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.grey,
+              color: _error != null
+                  ? Colors.red
+                  : Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 24),
-            const CircularProgressIndicator(),
+            if (_error == null) const CircularProgressIndicator(),
             const SizedBox(height: 16),
             Text(_status, style: Theme.of(context).textTheme.bodyMedium),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _error!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () {
+                  setState(() {
+                    _error = null;
+                    _status = 'Retrying...';
+                  });
+                  _init();
+                },
+                child: const Text('Retry'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _navigateToMap,
+                child: const Text('Skip — open map anyway'),
+              ),
+            ],
           ],
         ),
       ),

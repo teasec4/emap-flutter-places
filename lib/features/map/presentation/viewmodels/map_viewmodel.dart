@@ -7,17 +7,22 @@ import 'package:emap_hangzhou/core/services/poi_service.dart';
 class MapViewModel extends ChangeNotifier {
   List<PoiModel> _pois = [];
   bool _isLoading = false;
+  String? _error;
 
   List<PoiModel> get pois => List.unmodifiable(_pois);
   bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  /// Set by splash screen after getting GPS fix. Null if unavailable.
   LatLng? initialPosition;
 
   Future<void> loadPois() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
-    _pois = await PoiService.fetchPois();
+
+    final (pois, err) = await PoiService.fetchPois();
+    _pois = pois;
+    _error = err;
     _isLoading = false;
     notifyListeners();
   }
