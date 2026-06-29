@@ -4,8 +4,9 @@ import 'package:latlong2/latlong.dart';
 
 /// Converts between WGS-84 (GPS, global standard) and GCJ-02 (Chinese offset).
 ///
-/// AMap tiles use GCJ-02. flutter_map markers use WGS-84.
-/// Without conversion, markers are offset by ~300-500m in China.
+/// AMap tiles use GCJ-02. Device GPS is WGS-84.
+/// Convert GPS coordinates before drawing them on AMap tiles; do not convert
+/// coordinates that already come from AMap/GCJ-02 sources.
 class CoordinateUtils {
   CoordinateUtils._();
 

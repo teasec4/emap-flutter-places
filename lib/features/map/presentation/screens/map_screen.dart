@@ -121,7 +121,7 @@ class _MapScreenState extends State<MapScreen> {
           final meters = distance.as(
             LengthUnit.Meter,
             userPosition,
-            LatLng(poi.lat, poi.lng),
+            _poiGpsPoint(poi),
           );
           return _RecommendedPlace(poi: poi, distanceMeters: meters);
         })
@@ -136,10 +136,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _selectRecommendedPlace(PoiModel poi) {
-    _mapController.move(
-      CoordinateUtils.wgs84ToGcj02(LatLng(poi.lat, poi.lng)),
-      AppConstants.selectedPlaceZoom,
-    );
+    _mapController.move(_poiMapPoint(poi), AppConstants.selectedPlaceZoom);
     _onPoiTap(poi);
   }
 
@@ -157,6 +154,12 @@ class _MapScreenState extends State<MapScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Location is unavailable')));
+  }
+
+  LatLng _poiMapPoint(PoiModel poi) => LatLng(poi.lat, poi.lng);
+
+  LatLng _poiGpsPoint(PoiModel poi) {
+    return CoordinateUtils.gcj02ToWgs84(_poiMapPoint(poi));
   }
 
   void _moveToUser(LatLng position) {
@@ -231,7 +234,7 @@ class _MapScreenState extends State<MapScreen> {
     final type = PlaceTypeUi.fromType(poi.category);
     return Marker(
       key: ValueKey(_PoiMarkerKey(type, poi.id)),
-      point: CoordinateUtils.wgs84ToGcj02(LatLng(poi.lat, poi.lng)),
+      point: _poiMapPoint(poi),
       width: _poiMarkerSize.width,
       height: _poiMarkerSize.height,
       alignment: Alignment.bottomCenter,
