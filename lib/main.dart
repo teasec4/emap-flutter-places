@@ -9,9 +9,9 @@ import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel
 
 /// Shared theme — both the splash and the routed app use the same look.
 ThemeData _appTheme() => ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      useMaterial3: true,
-    );
+  colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+  useMaterial3: true,
+);
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +51,7 @@ class _SplashScreenState extends State<_SplashScreen> {
 
     if (!mounted) return;
     if (_vm.error != null) {
+      print('[SPLASH] Server error: ${_vm.error}');
       setState(() {
         _error = _vm.error;
         _status = 'Failed to load';

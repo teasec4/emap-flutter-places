@@ -11,21 +11,27 @@ class PoiService {
   static Future<(List<PoiModel>, String?)> fetchPois() async {
     final url = '${AppConstants.apiBaseUrl}${AppConstants.apiPoisPath}';
     final uri = Uri.parse(url);
+    print('[POI] GET $url');
 
     try {
       final response = await http.get(uri).timeout(AppConstants.networkTimeout);
+      print('[POI] status=${response.statusCode}');
 
       if (response.statusCode != 200) {
-        return (<PoiModel>[], 'HTTP ${response.statusCode}\n$url');
+        print('[POI] BODY=${response.body}');
+        return (<PoiModel>[], 'HTTP ${response.statusCode}');
       }
 
       final list = json.decode(response.body) as List<dynamic>;
+      print('[POI] loaded ${list.length} items');
       return (
         list.map((j) => PoiModel.fromJson(j as Map<String, dynamic>)).toList(),
         null,
       );
-    } catch (e) {
-      return (<PoiModel>[], '$url\n${e.toString().split('\n').first}');
+    } catch (e, st) {
+      print('[POI] FAIL $e');
+      print('[POI] STACK $st');
+      return (<PoiModel>[], '$e');
     }
   }
 }
