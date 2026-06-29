@@ -1,4 +1,4 @@
-/// Matches server-side Poi model (Go struct) at content.nalichi.fun
+/// Matches server JSON: id, name, type, lat, lng, comment, createdAt, updatedAt
 class PoiModel {
   final String id;
   final String name;
@@ -21,15 +21,22 @@ class PoiModel {
   });
 
   factory PoiModel.fromJson(Map<String, dynamic> json) {
+    String safeString(dynamic v) => (v ?? '').toString();
+    double safeDouble(dynamic v) => ((v ?? 0) as num).toDouble();
+    DateTime safeDate(dynamic v) {
+      final s = safeString(v);
+      return s.isNotEmpty ? DateTime.parse(s) : DateTime.now();
+    }
+
     return PoiModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      type: json['type'] as String,
-      lat: (json['lat'] as num).toDouble(),
-      lng: (json['lng'] as num).toDouble(),
-      comment: json['comment'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      id: safeString(json['id']),
+      name: safeString(json['name']),
+      type: safeString(json['type']),
+      lat: safeDouble(json['lat']),
+      lng: safeDouble(json['lng']),
+      comment: json['comment']?.toString(),
+      createdAt: safeDate(json['createdAt']),
+      updatedAt: safeDate(json['updatedAt']),
     );
   }
 }

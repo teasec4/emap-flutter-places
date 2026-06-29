@@ -76,6 +76,10 @@ extension PlaceTypeUi on PlaceType {
     const aliases = <String, PlaceType>{
       'cafe': PlaceType.coffee,
       'bar': PlaceType.coffee,
+      'restaurant': PlaceType.food,
+      'viewpoint': PlaceType.culture,
+      'museum': PlaceType.culture,
+      'park': PlaceType.nature,
     };
     final mapped =
         aliases[type] ??
