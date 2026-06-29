@@ -319,10 +319,9 @@ class _RecommendationsOverlay extends StatefulWidget {
 }
 
 class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
-  static const _compactSize = 0.11;
+  static const _compactSize = 0.12;
   static const _halfSize = 0.5;
   static const _fullSize = 0.92;
-  static const _compactHeightThreshold = 130.0;
 
   late final DraggableScrollableController _sheetController;
 
@@ -347,50 +346,40 @@ class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
       maxChildSize: _fullSize,
       snap: true,
       snapSizes: const [_compactSize, _halfSize, _fullSize],
+      snapAnimationDuration: const Duration(milliseconds: 180),
       builder: (context, scrollController) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxHeight < _compactHeightThreshold;
-            return _SheetSurface(
-              child: isCompact
-                  ? _buildCompactContent(scrollController)
-                  : _buildExpandedContent(context, scrollController),
-            );
-          },
+        return _SheetSurface(
+          child: CustomScrollView(
+            controller: scrollController,
+            slivers: [
+              SliverToBoxAdapter(child: _buildCompactButton()),
+              SliverToBoxAdapter(child: _buildHeader(context)),
+              _buildPlacesSliver(context),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildCompactContent(ScrollController scrollController) {
-    return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      children: [
-        Center(child: _SheetHandle()),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 48,
-          child: FilledButton.tonalIcon(
-            onPressed: _expandToHalf,
-            icon: const Icon(Icons.place_outlined),
-            label: const Text('Places nearby'),
+  Widget _buildCompactButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        children: [
+          Center(child: _SheetHandle()),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 44,
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: _expandToHalf,
+              icon: const Icon(Icons.place_outlined),
+              label: const Text('Places nearby'),
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExpandedContent(
-    BuildContext context,
-    ScrollController scrollController,
-  ) {
-    return CustomScrollView(
-      controller: scrollController,
-      slivers: [
-        SliverToBoxAdapter(child: _buildHeader(context)),
-        _buildPlacesSliver(context),
-      ],
+        ],
+      ),
     );
   }
 
