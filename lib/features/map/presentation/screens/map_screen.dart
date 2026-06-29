@@ -327,7 +327,6 @@ class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
   static const _fullSize = 0.92;
 
   late final DraggableScrollableController _sheetController;
-  double _sheetExtent = _compactSize;
 
   @override
   void initState() {
@@ -343,60 +342,45 @@ class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<DraggableScrollableNotification>(
-      onNotification: (notification) {
-        final nextExtent = notification.extent;
-        if ((nextExtent - _sheetExtent).abs() < 0.01) return false;
-        setState(() => _sheetExtent = nextExtent);
-        return false;
-      },
-      child: DraggableScrollableSheet(
-        controller: _sheetController,
-        minChildSize: _compactSize,
-        initialChildSize: _compactSize,
-        maxChildSize: _fullSize,
-        snap: true,
-        snapSizes: const [_compactSize, _halfSize, _fullSize],
-        snapAnimationDuration: const Duration(milliseconds: 180),
-        builder: (context, scrollController) {
-          return _SheetSurface(
-            child: CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverToBoxAdapter(
-                  child: _isCompact
-                      ? _buildCompactHeader()
-                      : _buildHeader(context),
-                ),
-                _buildPlacesSliver(context),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  bool get _isCompact => _sheetExtent < 0.2;
-
-  Widget _buildCompactHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Column(
-        children: [
-          Center(child: _SheetHandle()),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 44,
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: _expandToHalf,
-              icon: const Icon(Icons.place_outlined),
-              label: const Text('Places nearby'),
-            ),
+    return Stack(
+      children: [
+        DraggableScrollableSheet(
+          controller: _sheetController,
+          minChildSize: _compactSize,
+          initialChildSize: _compactSize,
+          maxChildSize: _fullSize,
+          snap: true,
+          snapSizes: const [_compactSize, _halfSize, _fullSize],
+          snapAnimationDuration: const Duration(milliseconds: 180),
+          builder: (context, scrollController) {
+            return _SheetSurface(
+              child: CustomScrollView(
+                controller: scrollController,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _CompactTopSpacer(
+                      controller: _sheetController,
+                      compactSize: _compactSize,
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: _buildHeader(context)),
+                  _buildPlacesSliver(context),
+                ],
+              ),
+            );
+          },
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _CompactNearbyButton(
+            controller: _sheetController,
+            compactSize: _compactSize,
+            onPressed: _expandToHalf,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -519,6 +503,87 @@ class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
     final kilometers = meters / 1000;
     return '${kilometers.toStringAsFixed(kilometers < 10 ? 1 : 0)} km';
   }
+}
+
+class _CompactTopSpacer extends StatelessWidget {
+  const _CompactTopSpacer({
+    required this.controller,
+    required this.compactSize,
+  });
+
+  static const _maxHeight = 76.0;
+
+  final DraggableScrollableController controller;
+  final double compactSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return SizedBox(
+          height: _maxHeight * _compactProgress(controller, compactSize),
+        );
+      },
+    );
+  }
+}
+
+class _CompactNearbyButton extends StatelessWidget {
+  const _CompactNearbyButton({
+    required this.controller,
+    required this.compactSize,
+    required this.onPressed,
+  });
+
+  final DraggableScrollableController controller;
+  final double compactSize;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final progress = _compactProgress(controller, compactSize);
+        return IgnorePointer(
+          ignoring: progress == 0,
+          child: Opacity(
+            opacity: progress,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(child: _SheetHandle()),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 44,
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      onPressed: onPressed,
+                      icon: const Icon(Icons.place_outlined),
+                      label: const Text('Places nearby'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+double _compactProgress(
+  DraggableScrollableController controller,
+  double compactSize,
+) {
+  const hiddenAt = 0.2;
+  final size = controller.isAttached ? controller.size : compactSize;
+  final rawProgress = (hiddenAt - size) / (hiddenAt - compactSize);
+  return rawProgress.clamp(0.0, 1.0);
 }
 
 class _SheetSurface extends StatelessWidget {
