@@ -5,7 +5,7 @@ import 'package:emap_hangzhou/core/services/poi_model.dart';
 import 'package:emap_hangzhou/core/services/poi_service.dart';
 
 class MapViewModel extends ChangeNotifier {
-  List<PoiModel> _pois = [];
+  List<PoiModel> _pois = const [];
   bool _isLoading = false;
   String? _error;
 
@@ -13,6 +13,9 @@ class MapViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// WGS-84 position captured on the splash screen, used to center the map
+  /// on first build. Set once during splash — no notify needed because the
+  /// map screen reads it in its first post-frame callback, not via watch.
   LatLng? initialPosition;
 
   Future<void> loadPois() async {

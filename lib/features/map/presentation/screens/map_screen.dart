@@ -5,9 +5,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import 'package:emap_hangzhou/core/constants/app_constants.dart';
+import 'package:emap_hangzhou/core/services/poi_model.dart';
 import 'package:emap_hangzhou/core/utils/amap_route_launcher.dart';
 import 'package:emap_hangzhou/core/utils/coordinate_utils.dart';
-import 'package:emap_hangzhou/core/services/poi_model.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/place_type_ui.dart';
 
@@ -29,14 +29,16 @@ class _MapScreenState extends State<MapScreen> {
     _mapController = MapController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final vm = context.read<MapViewModel>();
-      if (vm.initialPosition != null) {
+      final initial = vm.initialPosition;
+      if (initial != null) {
         setState(() {
-          _userPosition = vm.initialPosition;
+          _userPosition = initial;
           _locationGranted = true;
         });
         _mapController.move(
-          CoordinateUtils.wgs84ToGcj02(vm.initialPosition!),
+          CoordinateUtils.wgs84ToGcj02(initial),
           AppConstants.defaultZoom,
         );
       }
@@ -50,7 +52,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _onPoiTap(PoiModel poi) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -70,27 +72,27 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<MapViewModel>();
-    final center = _userPosition != null
-        ? CoordinateUtils.wgs84ToGcj02(_userPosition!)
-        : CoordinateUtils.wgs84ToGcj02(AppConstants.defaultMapCenter);
 
-    // Show server error if any
     if (vm.error != null) {
+      // NOTE: this fires on every rebuild while error is non-null. See TODO
+      // — should be wired through a one-shot listener instead.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Server: ${vm.error}'),
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'Retry',
-                onPressed: () => context.read<MapViewModel>().loadPois(),
-              ),
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Server: ${vm.error}'),
+            duration: AppConstants.errorSnackBarDuration,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => context.read<MapViewModel>().loadPois(),
             ),
-          );
-        }
+          ),
+        );
       });
     }
+
+    final wgsCenter = _userPosition ?? AppConstants.defaultMapCenter;
+    final mapCenter = CoordinateUtils.wgs84ToGcj02(wgsCenter);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
@@ -99,19 +101,16 @@ class _MapScreenState extends State<MapScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: center,
+              initialCenter: mapCenter,
               initialZoom: AppConstants.defaultZoom,
-              maxZoom: 19,
+              maxZoom: AppConstants.tileMaxZoom,
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://webrd0{s}.is.autonavi.com/appmaptile'
-                    '?lang=zh_cn&size=1&scale=1&style=8'
-                    '&x={x}&y={y}&z={z}',
-                subdomains: const ['1', '2', '3', '4'],
-                maxNativeZoom: 18,
-                userAgentPackageName: 'com.example.emap_hangzhou',
+                urlTemplate: AppConstants.amapTileUrlTemplate,
+                subdomains: AppConstants.amapTileSubdomains,
+                maxNativeZoom: AppConstants.amapTileMaxNativeZoom,
+                userAgentPackageName: AppConstants.tileUserAgentPackageName,
               ),
               MarkerLayer(
                 markers: [
@@ -126,19 +125,7 @@ class _MapScreenState extends State<MapScreen> {
             bottom: 24,
             child: FloatingActionButton.small(
               heroTag: 'my_location',
-              onPressed: () async {
-                if (_locationGranted) {
-                  try {
-                    final pos = await Geolocator.getCurrentPosition();
-                    final wgs = LatLng(pos.latitude, pos.longitude);
-                    setState(() => _userPosition = wgs);
-                    _mapController.move(
-                      CoordinateUtils.wgs84ToGcj02(wgs),
-                      AppConstants.defaultZoom,
-                    );
-                  } catch (_) {}
-                }
-              },
+              onPressed: _onMyLocationPressed,
               child: const Icon(Icons.my_location),
             ),
           ),
@@ -147,20 +134,40 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  Future<void> _onMyLocationPressed() async {
+    if (!_locationGranted) return;
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+      final wgs = LatLng(pos.latitude, pos.longitude);
+      setState(() => _userPosition = wgs);
+      _mapController.move(
+        CoordinateUtils.wgs84ToGcj02(wgs),
+        AppConstants.defaultZoom,
+      );
+    } catch (_) {
+      // Best-effort; ignore transient geolocator failures.
+    }
+  }
+
   Marker _buildPoiMarker(PoiModel poi) {
-    final type = PlaceTypeUi.fromCategory(poi.category);
-    // Server stores GCJ-02 — no conversion needed
+    final type = PlaceTypeUi.fromType(poi.type);
+    // Server stores GCJ-02 — no conversion needed.
     return Marker(
       point: LatLng(poi.lat, poi.lng),
-      width: 44,
-      height: 44,
+      width: AppConstants.poiMarkerSize,
+      height: AppConstants.poiMarkerSize,
       child: GestureDetector(
         onTap: () => _onPoiTap(poi),
         child: Container(
           decoration: BoxDecoration(
-            color: type.color.withAlpha(40),
+            color: type.color.withValues(
+              alpha: AppConstants.poiMarkerFillAlpha / 255,
+            ),
             shape: BoxShape.circle,
-            border: Border.all(color: type.color, width: 2),
+            border: Border.all(
+              color: type.color,
+              width: AppConstants.poiMarkerBorderWidth,
+            ),
           ),
           child: Icon(type.icon, color: type.color, size: 28),
         ),
@@ -168,41 +175,42 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Marker _buildUserMarker() {
-    final gcj = CoordinateUtils.wgs84ToGcj02(_userPosition!);
-    return Marker(
-      point: gcj,
-      width: 20,
-      height: 20,
-      alignment: Alignment.center,
-      child: Container(
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(50),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-          color: Colors.blue,
+  Marker _buildUserMarker() => Marker(
+    point: CoordinateUtils.wgs84ToGcj02(_userPosition!),
+    width: AppConstants.userMarkerSize,
+    height: AppConstants.userMarkerSize,
+    alignment: Alignment.center,
+    child: Container(
+      width: AppConstants.userMarkerSize,
+      height: AppConstants.userMarkerSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white,
+          width: AppConstants.userMarkerBorderWidth,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 50 / 255),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        color: Colors.blue,
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _PoiSheet extends StatelessWidget {
   const _PoiSheet({required this.poi});
+
   final PoiModel poi;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final type = PlaceTypeUi.fromCategory(poi.category);
+    final type = PlaceTypeUi.fromType(poi.type);
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -214,7 +222,9 @@ class _PoiSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withAlpha(50),
+                color: theme.colorScheme.onSurface.withValues(
+                  alpha: AppConstants.sheetHandleAlpha / 255,
+                ),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -225,7 +235,9 @@ class _PoiSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: type.color.withAlpha(30),
+                  color: type.color.withValues(
+                    alpha: AppConstants.poiSheetTintAlpha / 255,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: type.color, width: 2),
                 ),
@@ -244,7 +256,9 @@ class _PoiSheet extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: type.color.withAlpha(25),
+                        color: type.color.withValues(
+                          alpha: AppConstants.poiSheetChipAlpha / 255,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -274,16 +288,6 @@ class _PoiSheet extends StatelessWidget {
               ),
             ],
           ),
-          if (poi.city != null && poi.city!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_city, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(poi.city!, style: theme.textTheme.bodySmall),
-              ],
-            ),
-          ],
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: () => AmapRouteLauncher.launch(

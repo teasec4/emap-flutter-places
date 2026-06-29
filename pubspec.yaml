@@ -1,5 +1,5 @@
 name: emap_hangzhou
-description: "Location bookmarking MVP – save places on a map."
+description: "Location bookmarking MVP — save places on a map."
 publish_to: "none"
 version: 1.0.0+1
 
@@ -10,16 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-
   # Navigation
   go_router: ^14.6.2
 
   # State management
   provider: ^6.1.2
-
-  # Local database
-  # (removed — using server API instead)
 
   # Map (OpenStreetMap via flutter_map – no API key needed for MVP)
   flutter_map: ^7.0.2
@@ -28,16 +23,10 @@ dependencies:
   # Deep links for AMap
   url_launcher: ^6.3.1
 
-  # ID generation
-  # (removed)
-
-  # (removed)
-  # path_provider: ^2.1.5
-
   # Location
   geolocator: ^13.0.2
 
-  # HTTP for AMap API
+  # HTTP for the public POI API
   http: ^1.2.2
 
 dev_dependencies:
@@ -45,9 +34,6 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
-  # (removed)
-  # isar_community_generator: ^3.3.2
-  # build_runner: ^2.4.14
 
 flutter:
   uses-material-design: true

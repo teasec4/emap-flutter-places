@@ -1,38 +1,35 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
 
 import 'package:http/http.dart' as http;
 
+import 'package:emap_hangzhou/core/constants/app_constants.dart';
 import 'package:emap_hangzhou/core/services/poi_model.dart';
 
-/// Fetches POIs from the backend API.
+/// Fetches POIs from the public backend API.
 class PoiService {
-  static const _baseUrl = 'https://content.nalichi.fun';
+  PoiService._();
 
-  /// Returns (pois, errorMessage). One of them is always non-null/empty.
+  /// Returns `(pois, errorMessage)`. Exactly one of them is "useful":
+  /// either a populated list with `errorMessage == null`, or an empty list
+  /// with a non-null message describing what went wrong.
   static Future<(List<PoiModel>, String?)> fetchPois() async {
-    final uri = Uri.parse('$_baseUrl/api/public/poi');
+    final uri = Uri.parse(
+      '${AppConstants.apiBaseUrl}${AppConstants.apiPoisPath}',
+    );
     try {
-      dev.log('POI: GET $uri');
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
-      dev.log('POI: status=${response.statusCode}');
+      final response = await http.get(uri).timeout(AppConstants.networkTimeout);
 
       if (response.statusCode != 200) {
-        final msg = 'Server error: ${response.statusCode}';
-        dev.log('POI: $msg');
-        return (<PoiModel>[], msg);
+        return (<PoiModel>[], 'Server error: ${response.statusCode}');
       }
 
       final list = json.decode(response.body) as List<dynamic>;
-      dev.log('POI: got ${list.length} items');
       return (
         list.map((j) => PoiModel.fromJson(j as Map<String, dynamic>)).toList(),
         null,
       );
     } catch (e) {
-      final msg = 'Connection failed: $e';
-      dev.log('POI: $msg');
-      return (<PoiModel>[], msg);
+      return (<PoiModel>[], 'Connection failed: $e');
     }
   }
 }

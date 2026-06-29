@@ -67,11 +67,22 @@ extension PlaceTypeUi on PlaceType {
     }
   }
 
-  /// Parse from server category string.
-  static PlaceType fromCategory(String cat) {
-    return PlaceType.values.firstWhere(
-      (t) => t.name == cat,
-      orElse: () => PlaceType.other,
-    );
+  /// Parse from server `type` string (e.g. "cafe", "food").
+  ///
+  /// Falls back to [PlaceType.other] for unknown values. A few server-side
+  /// aliases (e.g. "cafe") are mapped onto the canonical enum values so the
+  /// marker icon stays meaningful.
+  static PlaceType fromType(String type) {
+    const aliases = <String, PlaceType>{
+      'cafe': PlaceType.coffee,
+      'bar': PlaceType.coffee,
+    };
+    final mapped =
+        aliases[type] ??
+        PlaceType.values.firstWhere(
+          (t) => t.name == type,
+          orElse: () => PlaceType.other,
+        );
+    return mapped;
   }
 }
