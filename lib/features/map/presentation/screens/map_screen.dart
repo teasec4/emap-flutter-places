@@ -748,21 +748,18 @@ class _PoiPin extends StatelessWidget {
       width: AppConstants.poiMarkerSize,
       height: AppConstants.poiMarkerSize,
       decoration: BoxDecoration(
-        color: type.color.withAlpha(AppConstants.poiMarkerFillAlpha),
+        color: type.color,
         shape: BoxShape.circle,
-        border: Border.all(
-          color: type.color,
-          width: AppConstants.poiMarkerBorderWidth,
-        ),
+        border: Border.all(color: Colors.white, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(35),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withAlpha(55),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Center(child: Icon(type.icon, color: type.color, size: 26)),
+      child: Center(child: Icon(type.icon, color: Colors.white, size: 24)),
     );
   }
 }
