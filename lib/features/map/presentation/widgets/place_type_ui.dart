@@ -6,12 +6,20 @@ import 'package:emap_hangzhou/features/map/domain/entities/place_type.dart';
 extension PlaceTypeUi on PlaceType {
   IconData get icon {
     switch (this) {
-      case PlaceType.restaurant:
+      case PlaceType.food:
         return Icons.restaurant;
-      case PlaceType.exhibition:
-        return Icons.theater_comedy;
-      case PlaceType.museum:
+      case PlaceType.coffee:
+        return Icons.coffee;
+      case PlaceType.sport:
+        return Icons.fitness_center;
+      case PlaceType.relax:
+        return Icons.spa;
+      case PlaceType.shopping:
+        return Icons.shopping_bag;
+      case PlaceType.culture:
         return Icons.museum;
+      case PlaceType.nature:
+        return Icons.park;
       case PlaceType.other:
         return Icons.place;
     }
@@ -19,12 +27,20 @@ extension PlaceTypeUi on PlaceType {
 
   Color get color {
     switch (this) {
-      case PlaceType.restaurant:
+      case PlaceType.food:
         return Colors.orange;
-      case PlaceType.exhibition:
+      case PlaceType.coffee:
+        return Colors.brown;
+      case PlaceType.sport:
+        return Colors.green;
+      case PlaceType.relax:
         return Colors.purple;
-      case PlaceType.museum:
+      case PlaceType.shopping:
+        return Colors.pink;
+      case PlaceType.culture:
         return Colors.teal;
+      case PlaceType.nature:
+        return Colors.lightGreen;
       case PlaceType.other:
         return Colors.red;
     }
@@ -32,14 +48,30 @@ extension PlaceTypeUi on PlaceType {
 
   String get label {
     switch (this) {
-      case PlaceType.restaurant:
-        return 'Restaurant';
-      case PlaceType.exhibition:
-        return 'Exhibition';
-      case PlaceType.museum:
-        return 'Museum';
+      case PlaceType.food:
+        return 'Food';
+      case PlaceType.coffee:
+        return 'Coffee';
+      case PlaceType.sport:
+        return 'Sport';
+      case PlaceType.relax:
+        return 'Relax';
+      case PlaceType.shopping:
+        return 'Shopping';
+      case PlaceType.culture:
+        return 'Culture';
+      case PlaceType.nature:
+        return 'Nature';
       case PlaceType.other:
         return 'Other';
     }
+  }
+
+  /// Parse from server category string.
+  static PlaceType fromCategory(String cat) {
+    return PlaceType.values.firstWhere(
+      (t) => t.name == cat,
+      orElse: () => PlaceType.other,
+    );
   }
 }

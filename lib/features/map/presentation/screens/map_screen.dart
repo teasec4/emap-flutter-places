@@ -5,15 +5,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import 'package:emap_hangzhou/core/constants/app_constants.dart';
+import 'package:emap_hangzhou/core/utils/amap_route_launcher.dart';
 import 'package:emap_hangzhou/core/utils/coordinate_utils.dart';
-import 'package:emap_hangzhou/features/map/domain/entities/place_entity.dart';
+import 'package:emap_hangzhou/core/services/poi_model.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
-import 'package:emap_hangzhou/features/map/presentation/widgets/add_place_sheet.dart';
-import 'package:emap_hangzhou/features/map/presentation/widgets/map_search_bar.dart';
-import 'package:emap_hangzhou/features/map/presentation/widgets/place_detail_sheet.dart';
 import 'package:emap_hangzhou/features/map/presentation/widgets/place_type_ui.dart';
 
-/// Map tab — AMap tiles with GCJ-02/WGS-84 coordinate conversion.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -23,19 +20,25 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
-  LatLng _centerGcj02 = CoordinateUtils.wgs84ToGcj02(
-    AppConstants.defaultMapCenter,
-  );
-  bool _locationGranted = false;
   LatLng? _userPosition;
+  bool _locationGranted = false;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MapViewModel>().loadPlaces();
-      _requestLocation();
+      final vm = context.read<MapViewModel>();
+      // Use GPS position from splash, otherwise default to Hangzhou
+      if (vm.initialPosition != null) {
+        _userPosition = vm.initialPosition;
+        _locationGranted = true;
+        _mapController.move(
+          CoordinateUtils.wgs84ToGcj02(vm.initialPosition!),
+          AppConstants.defaultZoom,
+        );
+      }
     });
   }
 
@@ -45,97 +48,19 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  Future<void> _requestLocation() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled && mounted) {
-      _showSnack('Location services are disabled.');
-      return;
-    }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever && mounted) {
-      _showSnack('Location permission denied permanently.');
-      return;
-    }
-    if (permission == LocationPermission.whileInUse ||
-        permission == LocationPermission.always) {
-      _locationGranted = true;
-      try {
-        final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-          ),
-        );
-        if (mounted) {
-          final wgs = LatLng(pos.latitude, pos.longitude);
-          setState(() {
-            _userPosition = wgs;
-            _centerGcj02 = CoordinateUtils.wgs84ToGcj02(wgs);
-          });
-          _mapController.move(_centerGcj02, AppConstants.defaultZoom);
-        }
-      } catch (_) {}
-    }
-  }
-
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
-    );
-  }
-
-  /// Search result selected — just move the map, don't auto-save.
-  void _onSearchResultSelected(String name, LatLng wgsPos) {
-    final gcj = CoordinateUtils.wgs84ToGcj02(wgsPos);
-    _mapController.move(gcj, AppConstants.placeZoom);
-  }
-
-  void _handleNavigateTarget(MapViewModel vm) {
-    final target = vm.consumeNavigateTarget();
-    if (target != null) {
-      _mapController.move(
-        CoordinateUtils.wgs84ToGcj02(target),
-        AppConstants.placeZoom,
-      );
-    }
-  }
-
-  /// Map tap returns GCJ-02. Convert to WGS-84 for storage.
-  void _onTap(LatLng gcj) {
-    final wgs = CoordinateUtils.gcj02ToWgs84(gcj);
-    _showAddPlaceSheet(wgs);
-  }
-
-  void _onMarkerTap(PlaceEntity place) {
-    _showPlaceDetailSheet(place);
-  }
-
-  void _showAddPlaceSheet(LatLng wgs) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) =>
-          AddPlaceSheet(latitude: wgs.latitude, longitude: wgs.longitude),
-    );
-  }
-
-  void _showPlaceDetailSheet(PlaceEntity place) {
+  void _onPoiTap(PoiModel poi) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.45,
-        minChildSize: 0.25,
-        maxChildSize: 0.75,
+        initialChildSize: 0.35,
+        minChildSize: 0.2,
+        maxChildSize: 0.6,
         expand: false,
-        builder: (_, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: PlaceDetailSheet(place: place),
+        builder: (_, ctrl) => SingleChildScrollView(
+          controller: ctrl,
+          child: _PoiSheet(poi: poi),
         ),
       ),
     );
@@ -144,7 +69,9 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<MapViewModel>();
-    _handleNavigateTarget(vm);
+    final center = _userPosition != null
+        ? CoordinateUtils.wgs84ToGcj02(_userPosition!)
+        : CoordinateUtils.wgs84ToGcj02(AppConstants.defaultMapCenter);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
@@ -153,10 +80,9 @@ class _MapScreenState extends State<MapScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: _centerGcj02,
+              initialCenter: center,
               initialZoom: AppConstants.defaultZoom,
               maxZoom: 19,
-              onTap: (_, p) => _onTap(p),
             ),
             children: [
               TileLayer(
@@ -170,23 +96,15 @@ class _MapScreenState extends State<MapScreen> {
               ),
               MarkerLayer(
                 markers: [
-                  ...vm.places.map(_buildMarker),
+                  ...vm.pois.map(_buildPoiMarker),
                   if (_userPosition != null) _buildUserMarker(),
                 ],
               ),
             ],
           ),
-          // Bottom search panel
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: MapSearchBar(onPlaceSelected: _onSearchResultSelected),
-          ),
-          // My Location button
           Positioned(
             right: 16,
-            bottom: 80,
+            bottom: 24,
             child: FloatingActionButton.small(
               heroTag: 'my_location',
               onPressed: () async {
@@ -194,12 +112,12 @@ class _MapScreenState extends State<MapScreen> {
                   try {
                     final pos = await Geolocator.getCurrentPosition();
                     final wgs = LatLng(pos.latitude, pos.longitude);
-                    final gcj = CoordinateUtils.wgs84ToGcj02(wgs);
                     setState(() => _userPosition = wgs);
-                    _mapController.move(gcj, AppConstants.defaultZoom);
+                    _mapController.move(
+                      CoordinateUtils.wgs84ToGcj02(wgs),
+                      AppConstants.defaultZoom,
+                    );
                   } catch (_) {}
-                } else {
-                  _requestLocation();
                 }
               },
               child: const Icon(Icons.my_location),
@@ -210,20 +128,22 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Marker _buildMarker(PlaceEntity place) {
-    final gcj = CoordinateUtils.wgs84ToGcj02(place.latLng);
+  Marker _buildPoiMarker(PoiModel poi) {
+    final type = PlaceTypeUi.fromCategory(poi.category);
+    final gcj = CoordinateUtils.wgs84ToGcj02(LatLng(poi.lat, poi.lng));
     return Marker(
       point: gcj,
       width: 44,
       height: 44,
       child: GestureDetector(
-        onTap: () => _onMarkerTap(place),
+        onTap: () => _onPoiTap(poi),
         child: Container(
           decoration: BoxDecoration(
-            color: place.type.color.withAlpha(40),
+            color: type.color.withAlpha(40),
             shape: BoxShape.circle,
+            border: Border.all(color: type.color, width: 2),
           ),
-          child: Icon(place.type.icon, color: place.type.color, size: 28),
+          child: Icon(type.icon, color: type.color, size: 28),
         ),
       ),
     );
@@ -251,6 +171,111 @@ class _MapScreenState extends State<MapScreen> {
           ],
           color: Colors.blue,
         ),
+      ),
+    );
+  }
+}
+
+class _PoiSheet extends StatelessWidget {
+  const _PoiSheet({required this.poi});
+  final PoiModel poi;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final type = PlaceTypeUi.fromCategory(poi.category);
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withAlpha(50),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: type.color.withAlpha(30),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: type.color, width: 2),
+                ),
+                child: Icon(type.icon, color: type.color, size: 28),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(poi.name, style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: type.color.withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        type.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: type.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (poi.comment != null && poi.comment!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(poi.comment!, style: theme.textTheme.bodyMedium),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.pin_drop, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                '${poi.lat.toStringAsFixed(6)}, ${poi.lng.toStringAsFixed(6)}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+          if (poi.city != null && poi.city!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.location_city, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(poi.city!, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ],
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () => AmapRouteLauncher.launch(
+              latitude: poi.lat,
+              longitude: poi.lng,
+              name: poi.name,
+            ),
+            icon: const Icon(Icons.directions),
+            label: const Text('Build Route'),
+          ),
+        ],
       ),
     );
   }

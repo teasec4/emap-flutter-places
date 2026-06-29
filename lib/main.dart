@@ -1,128 +1,135 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import 'package:emap_hangzhou/core/router/app_router.dart';
-import 'package:emap_hangzhou/core/services/isar_service.dart';
-import 'package:emap_hangzhou/features/map/data/repositories/place_repository_impl.dart';
-import 'package:emap_hangzhou/features/map/domain/repositories/place_repository.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const EmapSplashApp());
+  runApp(const SplashApp());
 }
 
-/// Minimal splash app shown while Isar initializes.
-class EmapSplashApp extends StatelessWidget {
-  const EmapSplashApp({super.key});
+class SplashApp extends StatelessWidget {
+  const SplashApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(home: _InitScreen());
+    return MaterialApp(
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+      ),
+      home: const _SplashScreen(),
+    );
   }
 }
 
-/// Handles Isar initialization and navigates to the real app.
-class _InitScreen extends StatefulWidget {
-  const _InitScreen();
+class _SplashScreen extends StatefulWidget {
+  const _SplashScreen();
 
   @override
-  State<_InitScreen> createState() => _InitScreenState();
+  State<_SplashScreen> createState() => _SplashScreenState();
 }
 
-class _InitScreenState extends State<_InitScreen> {
-  String? _error;
+class _SplashScreenState extends State<_SplashScreen> {
+  final _vm = MapViewModel();
+  String _status = 'Loading...';
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
+    _init();
   }
 
-  Future<void> _initialize() async {
-    try {
-      await IsarService.init();
-      if (!mounted) return;
+  Future<void> _init() async {
+    // 1. Fetch POIs from server
+    setState(() => _status = 'Loading places...');
+    await _vm.loadPois();
 
-      // Replace splash with real app
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const EmapApp()));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
-    }
+    // 2. Try to get user location (non-blocking)
+    setState(() => _status = 'Finding your location...');
+    LatLng? userPos;
+    try {
+      final ok = await Geolocator.isLocationServiceEnabled();
+      if (ok) {
+        var perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
+        }
+        if (perm == LocationPermission.whileInUse ||
+            perm == LocationPermission.always) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+          userPos = LatLng(pos.latitude, pos.longitude);
+        }
+      }
+    } catch (_) {}
+
+    // Wait until 2 seconds total elapsed, then navigate
+    setState(() => _status = 'Ready!');
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    setState(() => _ready = true);
+
+    // Pass initial position to MapViewModel for MapScreen to use
+    _vm.setInitialPosition(userPos);
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: _vm,
+          child: MaterialApp.router(
+            title: 'eMap Hangzhou',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+              useMaterial3: true,
+            ),
+            routerConfig: AppRouter.router,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
-        child: _error != null
-            ? Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Failed to initialize'),
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: () {
-                        setState(() => _error = null);
-                        _initialize();
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Loading...'),
-                ],
-              ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.map,
+              size: 72,
+              color: _ready
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey,
+            ),
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(_status, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// The real app — only shown after Isar is ready.
-class EmapApp extends StatelessWidget {
-  const EmapApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        Provider<PlaceRepository>(create: (_) => PlaceRepositoryImpl()),
-        ChangeNotifierProvider<MapViewModel>(
-          create: (ctx) =>
-              MapViewModel(repository: ctx.read<PlaceRepository>()),
-        ),
-      ],
-      child: MaterialApp.router(
-        title: 'eMap Hangzhou',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-          useMaterial3: true,
-        ),
-        routerConfig: AppRouter.router,
-      ),
-    );
+extension on MapViewModel {
+  void setInitialPosition(LatLng? pos) {
+    initialPosition = pos;
   }
 }

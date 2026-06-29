@@ -19,8 +19,7 @@ dependencies:
   provider: ^6.1.2
 
   # Local database
-  isar_community: ^3.3.2
-  isar_community_flutter_libs: ^3.3.2
+  # (removed — using server API instead)
 
   # Map (OpenStreetMap via flutter_map – no API key needed for MVP)
   flutter_map: ^7.0.2
@@ -30,10 +29,10 @@ dependencies:
   url_launcher: ^6.3.1
 
   # ID generation
-  uuid: ^4.5.1
+  # (removed)
 
-  # Path utilities
-  path_provider: ^2.1.5
+  # (removed)
+  # path_provider: ^2.1.5
 
   # Location
   geolocator: ^13.0.2
@@ -46,8 +45,9 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
-  isar_community_generator: ^3.3.2
-  build_runner: ^2.4.14
+  # (removed)
+  # isar_community_generator: ^3.3.2
+  # build_runner: ^2.4.14
 
 flutter:
   uses-material-design: true
