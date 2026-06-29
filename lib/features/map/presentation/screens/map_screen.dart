@@ -329,6 +329,7 @@ class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
   static const _fullSize = 0.92;
 
   late final DraggableScrollableController _sheetController;
+  double _sheetExtent = _compactSize;
 
   @override
   void initState() {
@@ -344,30 +345,43 @@ class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      controller: _sheetController,
-      minChildSize: _compactSize,
-      initialChildSize: _compactSize,
-      maxChildSize: _fullSize,
-      snap: true,
-      snapSizes: const [_compactSize, _halfSize, _fullSize],
-      snapAnimationDuration: const Duration(milliseconds: 180),
-      builder: (context, scrollController) {
-        return _SheetSurface(
-          child: CustomScrollView(
-            controller: scrollController,
-            slivers: [
-              SliverToBoxAdapter(child: _buildCompactButton()),
-              SliverToBoxAdapter(child: _buildHeader(context)),
-              _buildPlacesSliver(context),
-            ],
-          ),
-        );
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (notification) {
+        final nextExtent = notification.extent;
+        if ((nextExtent - _sheetExtent).abs() < 0.01) return false;
+        setState(() => _sheetExtent = nextExtent);
+        return false;
       },
+      child: DraggableScrollableSheet(
+        controller: _sheetController,
+        minChildSize: _compactSize,
+        initialChildSize: _compactSize,
+        maxChildSize: _fullSize,
+        snap: true,
+        snapSizes: const [_compactSize, _halfSize, _fullSize],
+        snapAnimationDuration: const Duration(milliseconds: 180),
+        builder: (context, scrollController) {
+          return _SheetSurface(
+            child: CustomScrollView(
+              controller: scrollController,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _isCompact
+                      ? _buildCompactHeader()
+                      : _buildHeader(context),
+                ),
+                _buildPlacesSliver(context),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildCompactButton() {
+  bool get _isCompact => _sheetExtent < 0.2;
+
+  Widget _buildCompactHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
