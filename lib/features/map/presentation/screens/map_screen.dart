@@ -322,7 +322,7 @@ class _RecommendationsOverlay extends StatefulWidget {
 }
 
 class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
-  static const _compactSize = 0.12;
+  static const _compactSize = 0.14;
   static const _halfSize = 0.5;
   static const _fullSize = 0.92;
 
@@ -511,7 +511,7 @@ class _CompactTopSpacer extends StatelessWidget {
     required this.compactSize,
   });
 
-  static const _maxHeight = 76.0;
+  static const _maxHeight = 96.0;
 
   final DraggableScrollableController controller;
   final double compactSize;
@@ -550,23 +550,26 @@ class _CompactNearbyButton extends StatelessWidget {
           ignoring: progress == 0,
           child: Opacity(
             opacity: progress,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(child: _SheetHandle()),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 44,
-                    width: double.infinity,
-                    child: FilledButton.tonalIcon(
-                      onPressed: onPressed,
-                      icon: const Icon(Icons.place_outlined),
-                      label: const Text('Places nearby'),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(child: _SheetHandle()),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 44,
+                      width: double.infinity,
+                      child: FilledButton.tonalIcon(
+                        onPressed: onPressed,
+                        icon: const Icon(Icons.place_outlined),
+                        label: const Text('Places nearby'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
