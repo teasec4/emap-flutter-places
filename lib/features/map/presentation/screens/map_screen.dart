@@ -136,7 +136,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _selectRecommendedPlace(PoiModel poi) {
-    _mapController.move(_poiMapPoint(poi), AppConstants.selectedPlaceZoom);
+    _moveToMapPoint(_poiMapPoint(poi), AppConstants.selectedPlaceZoom);
     _onPoiTap(poi);
   }
 
@@ -165,10 +165,14 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _moveToUser(LatLng position) {
-    _mapController.move(
+    _moveToMapPoint(
       CoordinateUtils.wgs84ToGcj02(position),
       AppConstants.defaultZoom,
     );
+  }
+
+  void _moveToMapPoint(LatLng point, double zoom) {
+    _mapController.move(point, zoom, offset: const Offset(0, -120));
   }
 
   List<Marker> _poiMarkers(List<PoiModel> pois) {
