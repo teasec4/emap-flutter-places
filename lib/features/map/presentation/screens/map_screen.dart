@@ -41,6 +41,9 @@ class _MapScreenState extends State<MapScreen> {
           CoordinateUtils.wgs84ToGcj02(initial),
           AppConstants.defaultZoom,
         );
+      } else {
+        // Splash didn't get GPS — try again now
+        _requestLocation();
       }
     });
   }
@@ -135,7 +138,10 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _onMyLocationPressed() async {
-    if (!_locationGranted) return;
+    if (!_locationGranted) {
+      await _requestLocation();
+      return;
+    }
     try {
       final pos = await Geolocator.getCurrentPosition();
       final wgs = LatLng(pos.latitude, pos.longitude);
@@ -144,9 +150,45 @@ class _MapScreenState extends State<MapScreen> {
         CoordinateUtils.wgs84ToGcj02(wgs),
         AppConstants.defaultZoom,
       );
-    } catch (_) {
-      // Best-effort; ignore transient geolocator failures.
+    } catch (_) {}
+  }
+
+  Future<void> _requestLocation() async {
+    final ok = await Geolocator.isLocationServiceEnabled();
+    if (!ok) {
+      if (mounted) _snack('Turn on location services');
+      return;
     }
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm == LocationPermission.deniedForever) {
+      if (mounted) _snack('Location denied. Enable in Settings.');
+      return;
+    }
+    if (perm == LocationPermission.whileInUse ||
+        perm == LocationPermission.always) {
+      _locationGranted = true;
+      try {
+        final pos = await Geolocator.getCurrentPosition();
+        final wgs = LatLng(pos.latitude, pos.longitude);
+        setState(() => _userPosition = wgs);
+        _mapController.move(
+          CoordinateUtils.wgs84ToGcj02(wgs),
+          AppConstants.defaultZoom,
+        );
+      } catch (_) {
+        if (mounted) _snack('Could not get GPS fix');
+      }
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 3)),
+    );
   }
 
   Marker _buildPoiMarker(PoiModel poi) {
