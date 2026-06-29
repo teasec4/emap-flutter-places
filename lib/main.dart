@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import 'package:emap_hangzhou/core/router/app_router.dart';
 import 'package:emap_hangzhou/core/services/isar_service.dart';
-import 'package:emap_hangzhou/features/favorites/presentation/viewmodels/favorites_viewmodel.dart';
 import 'package:emap_hangzhou/features/map/data/repositories/place_repository_impl.dart';
 import 'package:emap_hangzhou/features/map/domain/repositories/place_repository.dart';
 import 'package:emap_hangzhou/features/map/presentation/viewmodels/map_viewmodel.dart';
@@ -114,10 +113,6 @@ class EmapApp extends StatelessWidget {
         ChangeNotifierProvider<MapViewModel>(
           create: (ctx) =>
               MapViewModel(repository: ctx.read<PlaceRepository>()),
-        ),
-        ChangeNotifierProvider<FavoritesViewModel>(
-          create: (ctx) =>
-              FavoritesViewModel(repository: ctx.read<PlaceRepository>()),
         ),
       ],
       child: MaterialApp.router(
