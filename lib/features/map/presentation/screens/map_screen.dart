@@ -55,46 +55,102 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: center,
-              initialZoom: AppConstants.defaultZoom,
-              maxZoom: AppConstants.tileMaxZoom,
-            ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final overlayHeight = constraints.maxHeight / 3;
+          final recommendedPlaces = _recommendedPlaces(
+            userPosition: vm.userPosition,
+            pois: vm.pois,
+          );
+
+          return Stack(
             children: [
-              TileLayer(
-                urlTemplate: AppConstants.amapTileUrlTemplate,
-                subdomains: AppConstants.amapTileSubdomains,
-                maxNativeZoom: AppConstants.amapTileMaxNativeZoom,
-                userAgentPackageName: AppConstants.tileUserAgentPackageName,
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: center,
+                  initialZoom: AppConstants.defaultZoom,
+                  maxZoom: AppConstants.tileMaxZoom,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: AppConstants.amapTileUrlTemplate,
+                    subdomains: AppConstants.amapTileSubdomains,
+                    maxNativeZoom: AppConstants.amapTileMaxNativeZoom,
+                    userAgentPackageName: AppConstants.tileUserAgentPackageName,
+                  ),
+                  MarkerClusterLayerWidget(
+                    options: MarkerClusterLayerOptions(
+                      maxClusterRadius: 50,
+                      size: const Size(50, 50),
+                      markers: _poiMarkers(vm.pois),
+                      builder: _buildClusterMarker,
+                    ),
+                  ),
+                  if (vm.userPosition != null)
+                    MarkerLayer(markers: [_buildUserMarker(vm.userPosition!)]),
+                ],
               ),
-              MarkerClusterLayerWidget(
-                options: MarkerClusterLayerOptions(
-                  maxClusterRadius: 50,
-                  size: const Size(50, 50),
-                  markers: _poiMarkers(vm.pois),
-                  builder: _buildClusterMarker,
+              Positioned(
+                right: 16,
+                bottom: overlayHeight + 16,
+                child: FloatingActionButton.small(
+                  heroTag: 'my_location',
+                  onPressed: _refreshLocation,
+                  child: const Icon(Icons.my_location),
                 ),
               ),
-              if (vm.userPosition != null)
-                MarkerLayer(markers: [_buildUserMarker(vm.userPosition!)]),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: overlayHeight,
+                child: _RecommendationsOverlay(
+                  places: recommendedPlaces,
+                  hasUserPosition: vm.userPosition != null,
+                  onRefreshLocation: _refreshLocation,
+                  onPlaceTap: _selectRecommendedPlace,
+                ),
+              ),
             ],
-          ),
-          Positioned(
-            right: 16,
-            bottom: 24,
-            child: FloatingActionButton.small(
-              heroTag: 'my_location',
-              onPressed: _refreshLocation,
-              child: const Icon(Icons.my_location),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  List<_RecommendedPlace> _recommendedPlaces({
+    required LatLng? userPosition,
+    required List<PoiModel> pois,
+  }) {
+    if (userPosition == null) return const [];
+
+    const distance = Distance();
+    final places = pois
+        .map((poi) {
+          final meters = distance.as(
+            LengthUnit.Meter,
+            userPosition,
+            LatLng(poi.lat, poi.lng),
+          );
+          return _RecommendedPlace(poi: poi, distanceMeters: meters);
+        })
+        .where((place) {
+          return place.distanceMeters <= AppConstants.nearbyPlacesRadiusMeters;
+        })
+        .toList(growable: false);
+
+    return [...places]..sort(
+      (left, right) => left.distanceMeters.compareTo(right.distanceMeters),
+    );
+  }
+
+  void _selectRecommendedPlace(PoiModel poi) {
+    _mapController.move(
+      CoordinateUtils.wgs84ToGcj02(LatLng(poi.lat, poi.lng)),
+      AppConstants.selectedPlaceZoom,
+    );
+    _onPoiTap(poi);
   }
 
   Future<void> _refreshLocation() async {
@@ -237,6 +293,204 @@ class _MapScreenState extends State<MapScreen> {
         builder: (_, controller) => SingleChildScrollView(
           controller: controller,
           child: _PoiSheet(poi: poi),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecommendedPlace {
+  const _RecommendedPlace({required this.poi, required this.distanceMeters});
+
+  final PoiModel poi;
+  final double distanceMeters;
+}
+
+class _RecommendationsOverlay extends StatelessWidget {
+  const _RecommendationsOverlay({
+    required this.places,
+    required this.hasUserPosition,
+    required this.onRefreshLocation,
+    required this.onPlaceTap,
+  });
+
+  final List<_RecommendedPlace> places;
+  final bool hasUserPosition;
+  final VoidCallback onRefreshLocation;
+  final ValueChanged<PoiModel> onPlaceTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(35),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurface.withAlpha(
+                    AppConstants.sheetHandleAlpha,
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recommended nearby',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          _subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh location',
+                    onPressed: onRefreshLocation,
+                    icon: const Icon(Icons.my_location),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: _buildBody(context)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String get _subtitle {
+    if (!hasUserPosition) return 'Enable location to calculate distance';
+    if (places.isEmpty) return 'No places within 5 km yet';
+    return 'Closest places within 5 km';
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (!hasUserPosition) {
+      return _RecommendationsEmptyState(
+        icon: Icons.location_searching,
+        message: 'Tap the location button to find places near you.',
+        actionLabel: 'Use my location',
+        onActionPressed: onRefreshLocation,
+      );
+    }
+
+    if (places.isEmpty) {
+      return const _RecommendationsEmptyState(
+        icon: Icons.explore_off,
+        message: 'There are no saved places nearby yet.',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+      itemCount: places.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 2),
+      itemBuilder: (context, index) {
+        final place = places[index];
+        final poi = place.poi;
+        final type = PlaceTypeUi.fromType(poi.category);
+
+        return ListTile(
+          dense: true,
+          leading: CircleAvatar(
+            backgroundColor: type.color.withAlpha(
+              AppConstants.poiSheetTintAlpha,
+            ),
+            child: Icon(type.icon, color: type.color, size: 20),
+          ),
+          title: Text(poi.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            '${type.label} • ${_formatDistance(place.distanceMeters)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => onPlaceTap(poi),
+        );
+      },
+    );
+  }
+
+  static String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.round()} m';
+    final kilometers = meters / 1000;
+    return '${kilometers.toStringAsFixed(kilometers < 10 ? 1 : 0)} km';
+  }
+}
+
+class _RecommendationsEmptyState extends StatelessWidget {
+  const _RecommendationsEmptyState({
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onActionPressed,
+  });
+
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onActionPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 32, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (actionLabel != null && onActionPressed != null) ...[
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                onPressed: onActionPressed,
+                child: Text(actionLabel!),
+              ),
+            ],
+          ],
         ),
       ),
     );

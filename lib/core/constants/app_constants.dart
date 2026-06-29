@@ -53,6 +53,14 @@ class AppConstants {
   /// Location request timeout for startup and manual refresh.
   static const locationTimeout = Duration(seconds: 5);
 
+  // --- Recommendations -------------------------------------------------
+
+  /// Radius used for the initial "near you" recommendations overlay.
+  static const nearbyPlacesRadiusMeters = 5000.0;
+
+  /// Zoom used when a recommendation is selected.
+  static const selectedPlaceZoom = 15.0;
+
   // --- Marker visuals --------------------------------------------------
 
   /// Size of the tappable POI marker (logical px).
