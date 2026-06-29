@@ -17,10 +17,10 @@ class AppConstants {
 
   // --- AMap tile provider ----------------------------------------------
 
-  /// AMap raster tile URL template. `style=7` = standard raster map.
+  /// AMap raster tile URL template. `style=8` = old/vector-like raster style.
   static const amapTileUrlTemplate =
       'https://webrd0{s}.is.autonavi.com/appmaptile'
-      '?lang=zh_cn&size=1&scale=1&style=7'
+      '?lang=zh_cn&size=1&scale=1&style=8'
       '&x={x}&y={y}&z={z}';
 
   /// Subdomains AMap rotates through to spread load.
