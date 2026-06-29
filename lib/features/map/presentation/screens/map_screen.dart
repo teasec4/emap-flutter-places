@@ -130,9 +130,9 @@ class _MapScreenState extends State<MapScreen> {
 
   Marker _buildPoiMarker(PoiModel poi) {
     final type = PlaceTypeUi.fromCategory(poi.category);
-    final gcj = CoordinateUtils.wgs84ToGcj02(LatLng(poi.lat, poi.lng));
+    // Server stores GCJ-02 — no conversion needed
     return Marker(
-      point: gcj,
+      point: LatLng(poi.lat, poi.lng),
       width: 44,
       height: 44,
       child: GestureDetector(
