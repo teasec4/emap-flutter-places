@@ -53,68 +53,58 @@ class _MapScreenState extends State<MapScreen> {
         ? CoordinateUtils.wgs84ToGcj02(vm.userPosition!)
         : CoordinateUtils.wgs84ToGcj02(AppConstants.defaultMapCenter);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Map')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final overlayHeight = constraints.maxHeight / 3;
-          final recommendedPlaces = _recommendedPlaces(
-            userPosition: vm.userPosition,
-            pois: vm.pois,
-          );
+    final recommendedPlaces = _recommendedPlaces(
+      userPosition: vm.userPosition,
+      pois: vm.pois,
+    );
 
-          return Stack(
+    return Scaffold(
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: AppConstants.defaultZoom,
+              maxZoom: AppConstants.tileMaxZoom,
+            ),
             children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: AppConstants.defaultZoom,
-                  maxZoom: AppConstants.tileMaxZoom,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: AppConstants.amapTileUrlTemplate,
-                    subdomains: AppConstants.amapTileSubdomains,
-                    maxNativeZoom: AppConstants.amapTileMaxNativeZoom,
-                    userAgentPackageName: AppConstants.tileUserAgentPackageName,
-                  ),
-                  MarkerClusterLayerWidget(
-                    options: MarkerClusterLayerOptions(
-                      maxClusterRadius: 50,
-                      size: const Size(50, 50),
-                      markers: _poiMarkers(vm.pois),
-                      builder: _buildClusterMarker,
-                    ),
-                  ),
-                  if (vm.userPosition != null)
-                    MarkerLayer(markers: [_buildUserMarker(vm.userPosition!)]),
-                ],
+              TileLayer(
+                urlTemplate: AppConstants.amapTileUrlTemplate,
+                subdomains: AppConstants.amapTileSubdomains,
+                maxNativeZoom: AppConstants.amapTileMaxNativeZoom,
+                userAgentPackageName: AppConstants.tileUserAgentPackageName,
               ),
-              Positioned(
-                right: 16,
-                bottom: overlayHeight + 16,
-                child: FloatingActionButton.small(
-                  heroTag: 'my_location',
-                  onPressed: _refreshLocation,
-                  child: const Icon(Icons.my_location),
+              MarkerClusterLayerWidget(
+                options: MarkerClusterLayerOptions(
+                  maxClusterRadius: 50,
+                  size: const Size(50, 50),
+                  markers: _poiMarkers(vm.pois),
+                  builder: _buildClusterMarker,
                 ),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: overlayHeight,
-                child: _RecommendationsOverlay(
-                  places: recommendedPlaces,
-                  hasUserPosition: vm.userPosition != null,
-                  onRefreshLocation: _refreshLocation,
-                  onPlaceTap: _selectRecommendedPlace,
-                ),
-              ),
+              if (vm.userPosition != null)
+                MarkerLayer(markers: [_buildUserMarker(vm.userPosition!)]),
             ],
-          );
-        },
+          ),
+          Positioned(
+            right: 16,
+            top: 16,
+            child: SafeArea(
+              child: FloatingActionButton.small(
+                heroTag: 'my_location',
+                onPressed: _refreshLocation,
+                child: const Icon(Icons.my_location),
+              ),
+            ),
+          ),
+          _RecommendationsOverlay(
+            places: recommendedPlaces,
+            hasUserPosition: vm.userPosition != null,
+            onRefreshLocation: _refreshLocation,
+            onPlaceTap: _selectRecommendedPlace,
+          ),
+        ],
       ),
     );
   }
@@ -306,7 +296,7 @@ class _RecommendedPlace {
   final double distanceMeters;
 }
 
-class _RecommendationsOverlay extends StatelessWidget {
+class _RecommendationsOverlay extends StatefulWidget {
   const _RecommendationsOverlay({
     required this.places,
     required this.hasUserPosition,
@@ -318,6 +308,213 @@ class _RecommendationsOverlay extends StatelessWidget {
   final bool hasUserPosition;
   final VoidCallback onRefreshLocation;
   final ValueChanged<PoiModel> onPlaceTap;
+
+  @override
+  State<_RecommendationsOverlay> createState() =>
+      _RecommendationsOverlayState();
+}
+
+class _RecommendationsOverlayState extends State<_RecommendationsOverlay> {
+  static const _compactSize = 0.11;
+  static const _halfSize = 0.5;
+  static const _fullSize = 0.92;
+  static const _compactHeightThreshold = 130.0;
+
+  late final DraggableScrollableController _sheetController;
+
+  @override
+  void initState() {
+    super.initState();
+    _sheetController = DraggableScrollableController();
+  }
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      controller: _sheetController,
+      minChildSize: _compactSize,
+      initialChildSize: _compactSize,
+      maxChildSize: _fullSize,
+      snap: true,
+      snapSizes: const [_compactSize, _halfSize, _fullSize],
+      builder: (context, scrollController) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxHeight < _compactHeightThreshold;
+            return _SheetSurface(
+              child: isCompact
+                  ? _buildCompactContent(scrollController)
+                  : _buildExpandedContent(context, scrollController),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCompactContent(ScrollController scrollController) {
+    return ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      children: [
+        Center(child: _SheetHandle()),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 48,
+          child: FilledButton.tonalIcon(
+            onPressed: _expandToHalf,
+            icon: const Icon(Icons.place_outlined),
+            label: const Text('Places nearby'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExpandedContent(
+    BuildContext context,
+    ScrollController scrollController,
+  ) {
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        SliverToBoxAdapter(child: _buildHeader(context)),
+        _buildPlacesSliver(context),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Center(child: _SheetHandle()),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recommended nearby',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        _subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh location',
+                  onPressed: widget.onRefreshLocation,
+                  icon: const Icon(Icons.my_location),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlacesSliver(BuildContext context) {
+    if (!widget.hasUserPosition) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _RecommendationsEmptyState(
+          icon: Icons.location_searching,
+          message: 'Tap the location button to find places near you.',
+          actionLabel: 'Use my location',
+          onActionPressed: widget.onRefreshLocation,
+        ),
+      );
+    }
+
+    if (widget.places.isEmpty) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _RecommendationsEmptyState(
+          icon: Icons.explore_off,
+          message: 'There are no saved places nearby yet.',
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+      sliver: SliverList.builder(
+        itemCount: widget.places.length,
+        itemBuilder: (context, index) {
+          final place = widget.places[index];
+          final poi = place.poi;
+          final type = PlaceTypeUi.fromType(poi.category);
+
+          return ListTile(
+            dense: true,
+            leading: CircleAvatar(
+              backgroundColor: type.color.withAlpha(
+                AppConstants.poiSheetTintAlpha,
+              ),
+              child: Icon(type.icon, color: type.color, size: 20),
+            ),
+            title: Text(poi.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              '${type.label} • ${_formatDistance(place.distanceMeters)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => widget.onPlaceTap(poi),
+          );
+        },
+      ),
+    );
+  }
+
+  String get _subtitle {
+    if (!widget.hasUserPosition) return 'Enable location to calculate distance';
+    if (widget.places.isEmpty) return 'No places within 5 km yet';
+    return 'Closest places within 5 km';
+  }
+
+  Future<void> _expandToHalf() async {
+    await _sheetController.animateTo(
+      _halfSize,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  static String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.round()} m';
+    final kilometers = meters / 1000;
+    return '${kilometers.toStringAsFixed(kilometers < 10 ? 1 : 0)} km';
+  }
+}
+
+class _SheetSurface extends StatelessWidget {
+  const _SheetSurface({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -335,119 +532,26 @@ class _RecommendationsOverlay extends StatelessWidget {
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 8),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurface.withAlpha(
-                    AppConstants.sheetHandleAlpha,
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recommended nearby',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          _subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Refresh location',
-                    onPressed: onRefreshLocation,
-                    icon: const Icon(Icons.my_location),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(child: _buildBody(context)),
-          ],
+      child: child,
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.onSurface.withAlpha(
+          AppConstants.sheetHandleAlpha,
         ),
+        borderRadius: BorderRadius.circular(2),
       ),
     );
-  }
-
-  String get _subtitle {
-    if (!hasUserPosition) return 'Enable location to calculate distance';
-    if (places.isEmpty) return 'No places within 5 km yet';
-    return 'Closest places within 5 km';
-  }
-
-  Widget _buildBody(BuildContext context) {
-    if (!hasUserPosition) {
-      return _RecommendationsEmptyState(
-        icon: Icons.location_searching,
-        message: 'Tap the location button to find places near you.',
-        actionLabel: 'Use my location',
-        onActionPressed: onRefreshLocation,
-      );
-    }
-
-    if (places.isEmpty) {
-      return const _RecommendationsEmptyState(
-        icon: Icons.explore_off,
-        message: 'There are no saved places nearby yet.',
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-      itemCount: places.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 2),
-      itemBuilder: (context, index) {
-        final place = places[index];
-        final poi = place.poi;
-        final type = PlaceTypeUi.fromType(poi.category);
-
-        return ListTile(
-          dense: true,
-          leading: CircleAvatar(
-            backgroundColor: type.color.withAlpha(
-              AppConstants.poiSheetTintAlpha,
-            ),
-            child: Icon(type.icon, color: type.color, size: 20),
-          ),
-          title: Text(poi.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(
-            '${type.label} • ${_formatDistance(place.distanceMeters)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => onPlaceTap(poi),
-        );
-      },
-    );
-  }
-
-  static String _formatDistance(double meters) {
-    if (meters < 1000) return '${meters.round()} m';
-    final kilometers = meters / 1000;
-    return '${kilometers.toStringAsFixed(kilometers < 10 ? 1 : 0)} km';
   }
 }
 
